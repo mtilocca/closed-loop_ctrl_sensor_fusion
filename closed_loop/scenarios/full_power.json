@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "name": "full_power_test",
+    "version": 2,
+    "description": "Full power acceleration with 300 kW power limiting and extended coasting"
+  },
+  "timing": {
+    "dt_s": 0.01,
+    "duration_s": 40.0,
+    "log_hz": 10.0,
+    "real_time_mode": false
+  },
+  "defaults": {
+    "system_enable": true,
+    "mode": 0,
+    "drive_torque_cmd_nm": 0.0,
+    "brake_cmd_pct": 0.0,
+    "steer_cmd_deg": 0.0
+  },
+  "segments": [
+    {
+      "t0": 0.0,
+      "t1": 10.0,
+      "drive_torque_cmd_nm": 4000.0,
+      "comment": "Maximum motor torque - will be power limited to 300 kW at high speed"
+    },
+    {
+      "t0": 10.0,
+      "t1": 15.0,
+      "drive_torque_cmd_nm": 2000.0,
+      "comment": "Moderate torque cruising"
+    },
+    {
+      "t0": 15.0,
+      "t1": -1.0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "comment": "Extended coasting phase (25 seconds) - test realistic deceleration"
+    }
+  ]
+}

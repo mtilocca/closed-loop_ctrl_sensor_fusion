@@ -1,0 +1,30 @@
+# Binaries / build outputs
+bin/
+dist/
+build/
+out/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build cache artifacts (usually not in repo, but safe)
+*.test
+*.prof
+*.pprof
+coverage.out
+
+# Logs
+*.log
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local env files
+.env
+.env.*

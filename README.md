@@ -34,3 +34,32 @@ DDSIn --> Fusion --> DDSOut
 
 
 
+Minimal closed-loop utilities for driving actuator commands over SocketCAN using a CSV CAN map.
+
+## What this repo contains
+
+- `config/can/can_map.csv`  
+  CSV-based CAN database (frame + signal definitions). Used for encoding/decoding.
+
+- `closed_loop/`  
+  Scenario-based actuator command sender:
+  - Loads a JSON scenario (slalom, etc.)
+  - Encodes `ACTUATOR_CMD_1` using `can_map.csv`
+  - Transmits on SocketCAN (e.g. `vcan0`) at the frame `cycle_ms`
+
+- `utils/`  
+  Reusable utilities:
+  - CSV CAN map loader
+  - bit packing / signal scaling codec
+  - file logger (`closed_loop.log`)
+
+Transport uses `go.einride.tech/can` + `socketcan`.
+
+## Build
+
+From repo root:
+
+```bash
+go mod tidy
+mkdir -p bin
+go build -o bin/closed_loop_sender ./closed_loop

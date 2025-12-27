@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "name": "obstacle_avoid_swerve_60s",
+    "version": 3,
+    "description": "1-minute obstacle avoidance: braking + swerve + recovery + coasting"
+  },
+  "timing": {
+    "dt_s": 0.01,
+    "duration_s": 60.0,
+    "log_hz": 10.0,
+    "real_time_mode": true
+  },
+  "defaults": {
+    "system_enable": true,
+    "mode": 0,
+    "drive_torque_cmd_nm": 800.0,
+    "brake_cmd_pct": 0.0,
+    "steer_cmd_deg": 0.0
+  },
+  "segments": [
+    {
+      "t0": 0.0,
+      "t1": 10.0,
+      "steer_cmd_deg": 0.0,
+      "brake_cmd_pct": 0.0,
+      "comment": "Cruise straight (approach obstacle zone)"
+    },
+    {
+      "t0": 10.0,
+      "t1": 12.0,
+      "steer_cmd_deg": 0.0,
+      "brake_cmd_pct": 15.0,
+      "drive_torque_cmd_nm": 650.0,
+      "comment": "Obstacle detected: mild braking, torque reduction"
+    },
+    {
+      "t0": 12.0,
+      "t1": 13.0,
+      "steer_cmd_deg": 4.0,
+      "brake_cmd_pct": 25.0,
+      "drive_torque_cmd_nm": 550.0,
+      "comment": "Initiate avoidance: left steer + braking"
+    },
+    {
+      "t0": 13.0,
+      "t1": 15.0,
+      "steer_cmd_deg": 10.0,
+      "brake_cmd_pct": 20.0,
+      "drive_torque_cmd_nm": 500.0,
+      "comment": "Peak left steer: pass around obstacle"
+    },
+    {
+      "t0": 15.0,
+      "t1": 16.5,
+      "steer_cmd_deg": 6.0,
+      "brake_cmd_pct": 10.0,
+      "drive_torque_cmd_nm": 600.0,
+      "comment": "Clear obstacle: reduce steer + release brake"
+    },
+    {
+      "t0": 16.5,
+      "t1": 18.5,
+      "steer_cmd_deg": 0.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 750.0,
+      "comment": "Short stabilization straight"
+    },
+    {
+      "t0": 18.5,
+      "t1": 20.0,
+      "steer_cmd_deg": -5.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 800.0,
+      "comment": "Counter-steer right to re-center"
+    },
+    {
+      "t0": 20.0,
+      "t1": 22.0,
+      "steer_cmd_deg": -9.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 800.0,
+      "comment": "Peak counter-steer right"
+    },
+    {
+      "t0": 22.0,
+      "t1": 24.0,
+      "steer_cmd_deg": -4.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 800.0,
+      "comment": "Reduce counter-steer"
+    },
+    {
+      "t0": 24.0,
+      "t1": 30.0,
+      "steer_cmd_deg": 0.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 800.0,
+      "comment": "Recovered: straight driving"
+    },
+    {
+      "t0": 30.0,
+      "t1": 33.0,
+      "steer_cmd_deg": 2.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 800.0,
+      "comment": "Small residual correction"
+    },
+    {
+      "t0": 33.0,
+      "t1": 36.0,
+      "steer_cmd_deg": -2.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 800.0,
+      "comment": "Small correction back"
+    },
+    {
+      "t0": 36.0,
+      "t1": -1.0,
+      "steer_cmd_deg": 0.0,
+      "brake_cmd_pct": 0.0,
+      "drive_torque_cmd_nm": 0.0,
+      "comment": "Coast to end - test coasting regen (24 seconds)"
+    }
+  ]
+}

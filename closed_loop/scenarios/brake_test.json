@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "name": "brake_test",
+    "version": 1,
+    "description": "Acceleration, braking with regen, and coasting test"
+  },
+  "timing": {
+    "dt_s": 0.01,
+    "duration_s": 30.0,
+    "log_hz": 10.0,
+    "real_time_mode": false
+  },
+  "vehicle_config": "config/vehicles/default.yaml",
+  "defaults": {
+    "system_enable": true,
+    "mode": 0,
+    "drive_torque_cmd_nm": 0.0,
+    "brake_cmd_pct": 0.0,
+    "steer_cmd_deg": 0.0
+  },
+  "segments": [
+    {
+      "t0": 0.0,
+      "t1": 4.0,
+      "drive_torque_cmd_nm": 1200.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Accelerate to 40 m/s"
+    },
+    {
+      "t0": 4.0,
+      "t1": 8.0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 60.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Brake hard with regen"
+    },
+    {
+      "t0": 8.0,
+      "t1": 12.0,
+      "drive_torque_cmd_nm": 600.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Accelerate to 40 m/s again"
+    },
+    {
+      "t0": 12.0,
+      "t1": -1.0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Coast (regen from drag) - 18 seconds"
+    }
+  ]
+}

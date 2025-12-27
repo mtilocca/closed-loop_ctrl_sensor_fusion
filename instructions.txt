@@ -1,0 +1,11 @@
+./bin/closed_loop_sender -log trace
+
+
+go mod init dds-fusion-core
+go get golang.org/x/sys/unix@latest
+go mod tidy
+
+go build -o bin/closed_loop_sender ./closed_loop
+
+
+./bin/closed_loop_sender   -iface vcan0   -map config/can/can_map.csv   -scenario closed_loop/scenarios/slalom.json   -frame ACTUATOR_CMD_1   -log info

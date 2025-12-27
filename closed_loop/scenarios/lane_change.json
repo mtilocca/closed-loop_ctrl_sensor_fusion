@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "name": "lane_change_smooth",
+    "version": 3,
+    "description": "Smooth lane change maneuver with constant speed and coasting test"
+  },
+  "timing": {
+    "dt_s": 0.01,
+    "duration_s": 25.0,
+    "log_hz": 10.0,
+    "real_time_mode": false
+  },
+  "defaults": {
+    "system_enable": true,
+    "mode": 0,
+    "drive_torque_cmd_nm": 800.0,
+    "brake_cmd_pct": 0.0,
+    "steer_cmd_deg": 0.0
+  },
+  "segments": [
+    {
+      "t0": 0.0,
+      "t1": 2.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Initial straight driving"
+    },
+    {
+      "t0": 2.0,
+      "t1": 3.0,
+      "steer_cmd_deg": 3.0,
+      "comment": "Begin lane change - gentle turn"
+    },
+    {
+      "t0": 3.0,
+      "t1": 4.0,
+      "steer_cmd_deg": 7.0,
+      "comment": "Peak steering angle"
+    },
+    {
+      "t0": 4.0,
+      "t1": 5.0,
+      "steer_cmd_deg": 3.0,
+      "comment": "Reduce steering"
+    },
+    {
+      "t0": 5.0,
+      "t1": 6.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Straighten out"
+    },
+    {
+      "t0": 6.0,
+      "t1": 7.0,
+      "steer_cmd_deg": -3.0,
+      "comment": "Counter steer - return to lane"
+    },
+    {
+      "t0": 7.0,
+      "t1": 8.0,
+      "steer_cmd_deg": -7.0,
+      "comment": "Peak counter steer"
+    },
+    {
+      "t0": 8.0,
+      "t1": 9.0,
+      "steer_cmd_deg": -3.0,
+      "comment": "Reduce counter steer"
+    },
+    {
+      "t0": 9.0,
+      "t1": 12.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Stabilization straight"
+    },
+    {
+      "t0": 12.0,
+      "t1": -1.0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0,
+      "comment": "Coast to end (13 seconds)"
+    }
+  ]
+}

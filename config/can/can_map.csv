@@ -1,0 +1,65 @@
+direction,frame_id,frame_name,cycle_ms,dlc,signal_name,target,start_bit,bit_length,endianness,signed,factor,offset,min,max,default,unit,counter_bits,crc,comment
+rx,0x100,ACTUATOR_CMD_1,10,8,system_enable,actuator_cmd,0,1,little,FALSE,1,0,0,1,0,bool,,,Motor controller enable
+rx,0x100,ACTUATOR_CMD_1,10,8,mode,actuator_cmd,1,3,little,FALSE,1,0,0,7,0,enum,,,Operating mode (reserved)
+rx,0x100,ACTUATOR_CMD_1,10,8,steer_cmd_deg,actuator_cmd,8,16,little,TRUE,0.1,0,-500,500,0,deg,,,Steering command
+rx,0x100,ACTUATOR_CMD_1,10,8,drive_torque_cmd_nm,actuator_cmd,24,16,little,TRUE,1,0,-4000,4000,0,Nm,,,Motor torque command
+rx,0x100,ACTUATOR_CMD_1,10,8,brake_cmd_pct,actuator_cmd,40,8,little,FALSE,0.5,0,0,100,0,%,,,Brake pedal percentage
+tx,0x200,IMU_ACC,5,8,imu_ax_mps2,sensor_out,0,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Longitudinal acceleration
+tx,0x200,IMU_ACC,5,8,imu_ay_mps2,sensor_out,16,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Lateral acceleration
+tx,0x200,IMU_ACC,5,8,imu_az_mps2,sensor_out,32,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Vertical acceleration
+tx,0x200,IMU_ACC,5,8,imu_temp_c,sensor_out,48,16,little,TRUE,0.01,0,-40,125,25,C,,,IMU temperature
+tx,0x201,IMU_GYR,5,8,imu_gx_rps,sensor_out,0,16,little,TRUE,0.001,0,-10,10,0,rad/s,,,Roll rate
+tx,0x201,IMU_GYR,5,8,imu_gy_rps,sensor_out,16,16,little,TRUE,0.001,0,-10,10,0,rad/s,,,Pitch rate
+tx,0x201,IMU_GYR,5,8,imu_gz_rps,sensor_out,32,16,little,TRUE,0.001,0,-10,10,0,rad/s,,,Yaw rate
+tx,0x201,IMU_GYR,5,8,imu_status,sensor_out,48,8,little,FALSE,1,0,0,255,0,flags,,,IMU status flags
+tx,0x210,GNSS_LL,100,8,gnss_lat_deg,sensor_out,0,32,little,TRUE,1.00E-07,0,-90,90,0,deg,,,Latitude
+tx,0x210,GNSS_LL,100,8,gnss_lon_deg,sensor_out,32,32,little,TRUE,1.00E-07,0,-180,180,0,deg,,,Longitude
+tx,0x211,GNSS_AV,100,8,gnss_alt_m,sensor_out,0,16,little,TRUE,0.1,-1000,-1000,8000,0,m,,,Altitude MSL
+tx,0x211,GNSS_AV,100,8,gnss_vn_mps,sensor_out,16,16,little,TRUE,0.01,0,-200,200,0,m/s,,,Velocity north
+tx,0x211,GNSS_AV,100,8,gnss_ve_mps,sensor_out,32,16,little,TRUE,0.01,0,-200,200,0,m/s,,,Velocity east
+tx,0x211,GNSS_AV,100,8,gnss_fix_type,sensor_out,48,8,little,FALSE,1,0,0,10,0,enum,,,Fix type (0=no fix 3=3D)
+tx,0x211,GNSS_AV,100,8,gnss_sat_count,sensor_out,56,8,little,FALSE,1,0,0,255,0,count,,,Satellites in use
+tx,0x220,WHEELS_1,10,8,wheel_fl_rps,sensor_out,0,16,little,TRUE,0.01,0,-300,300,0,rad/s,,,Front left wheel speed
+tx,0x220,WHEELS_1,10,8,wheel_fr_rps,sensor_out,16,16,little,TRUE,0.01,0,-300,300,0,rad/s,,,Front right wheel speed
+tx,0x220,WHEELS_1,10,8,wheel_rl_rps,sensor_out,32,16,little,TRUE,0.01,0,-300,300,0,rad/s,,,Rear left wheel speed
+tx,0x220,WHEELS_1,10,8,wheel_rr_rps,sensor_out,48,16,little,TRUE,0.01,0,-300,300,0,rad/s,,,Rear right wheel speed
+tx,0x221,STEER_STATE,10,8,steer_deg,sensor_out,0,16,little,TRUE,0.1,0,-500,500,0,deg,,,Virtual bicycle steer angle
+tx,0x221,STEER_STATE,10,8,steer_rate_dps,sensor_out,16,16,little,TRUE,0.1,0,-1000,1000,0,deg/s,,,Steering rate
+tx,0x221,STEER_STATE,10,8,delta_fl_deg,sensor_out,32,12,little,TRUE,0.1,0,-45,45,0,deg,,,Front left wheel angle (Ackermann)
+tx,0x221,STEER_STATE,10,8,delta_fr_deg,sensor_out,44,12,little,TRUE,0.1,0,-45,45,0,deg,,,Front right wheel angle (Ackermann)
+tx,0x221,STEER_STATE,10,8,steer_fault,sensor_out,56,8,little,FALSE,1,0,0,255,0,flags,,,Steering fault flags
+tx,0x230,BATT_STATE,50,8,batt_v,sensor_out,0,16,little,FALSE,0.1,0,0,1000,0,V,,,Battery pack voltage
+tx,0x230,BATT_STATE,50,8,batt_i,sensor_out,16,16,little,TRUE,0.1,0,-2000,2000,0,A,,,Battery current (+ = discharge)
+tx,0x230,BATT_STATE,50,8,batt_soc_pct,sensor_out,32,8,little,FALSE,0.5,0,0,100,50,%,,,State of charge
+tx,0x230,BATT_STATE,50,8,batt_temp_c,sensor_out,40,8,little,FALSE,1,-40,-40,125,25,C,,,Battery temperature
+tx,0x230,BATT_STATE,50,8,batt_power_kw,sensor_out,48,16,little,TRUE,0.1,0,-200,200,0,kW,,,Battery power (+ = discharge)
+tx,0x240,RADAR_1,50,8,radar_target_range_m,sensor_out,0,16,little,FALSE,0.1,0,0,1000,0,m,,,Target range
+tx,0x240,RADAR_1,50,8,radar_target_rel_vel_mps,sensor_out,16,16,little,TRUE,0.01,0,-200,200,0,m/s,,,Target relative velocity
+tx,0x240,RADAR_1,50,8,radar_target_angle_deg,sensor_out,32,16,little,TRUE,0.1,0,-90,90,0,deg,,,Target angle
+tx,0x240,RADAR_1,50,8,radar_status,sensor_out,48,8,little,FALSE,1,0,0,255,0,flags,,,Radar status
+tx,0x300,VEHICLE_STATE_1,10,8,vehicle_speed_mps,plant_state,0,16,little,TRUE,0.01,0,-100,100,0,m/s,,,Longitudinal speed (truth)
+tx,0x300,VEHICLE_STATE_1,10,8,vehicle_accel_mps2,plant_state,16,16,little,TRUE,0.01,0,-20,20,0,m/s2,,,Longitudinal acceleration (truth)
+tx,0x300,VEHICLE_STATE_1,10,8,yaw_rate_radps,plant_state,32,16,little,TRUE,0.001,0,-10,10,0,rad/s,,,Yaw rate (truth)
+tx,0x300,VEHICLE_STATE_1,10,8,status_flags,plant_state,48,8,little,FALSE,1,0,0,255,0,flags,,,Vehicle status flags
+tx,0x310,MOTOR_STATE_1,10,8,motor_torque_nm,plant_state,0,16,little,TRUE,1,0,-4000,4000,0,Nm,,,Actual motor torque
+tx,0x310,MOTOR_STATE_1,10,8,motor_power_kw,plant_state,16,16,little,TRUE,0.1,0,-200,200,0,kW,,,Motor mechanical power
+tx,0x310,MOTOR_STATE_1,10,8,motor_speed_rpm,plant_state,32,16,little,FALSE,1,0,0,20000,0,rpm,,,Motor shaft speed
+tx,0x310,MOTOR_STATE_1,10,8,motor_temp_c,plant_state,48,8,little,FALSE,1,-40,-40,200,25,C,,,Motor temperature
+tx,0x320,BRAKE_STATE,10,8,brake_force_kn,plant_state,0,16,little,FALSE,0.01,0,0,100,0,kN,,,Total brake force
+tx,0x320,BRAKE_STATE,10,8,brake_pct_actual,plant_state,16,8,little,FALSE,0.5,0,0,100,0,%,,,Actual brake application
+tx,0x320,BRAKE_STATE,10,8,regen_power_kw,plant_state,24,16,little,FALSE,0.1,0,0,150,0,kW,,,Regenerative braking power
+tx,0x320,BRAKE_STATE,10,8,brake_temp_c,plant_state,40,8,little,FALSE,1,-40,-40,300,25,C,,,Brake disc temperature
+tx,0x330,POSITION_STATE,50,8,pos_x_m,plant_state,0,32,little,TRUE,0.01,0,-100000,100000,0,m,,,Global X position (truth)
+tx,0x330,POSITION_STATE,50,8,pos_y_m,plant_state,32,32,little,TRUE,0.01,0,-100000,100000,0,m,,,Global Y position (truth)
+tx,0x331,ORIENTATION_STATE,50,8,yaw_deg,plant_state,0,16,little,TRUE,0.01,0,-180,180,0,deg,,,Yaw angle (truth)
+tx,0x331,ORIENTATION_STATE,50,8,yaw_rad,plant_state,16,16,little,TRUE,0.001,0,-3.15,3.15,0,rad,,,Yaw angle in radians
+tx,0x331,ORIENTATION_STATE,50,8,yaw_rate_dps,plant_state,32,16,little,TRUE,0.1,0,-500,500,0,deg/s,,,Yaw rate in deg/s
+tx,0x340,DRIVETRAIN_STATE,100,8,gear_ratio,plant_state,0,16,little,FALSE,0.01,0,0,20,9,ratio,,,Gear ratio (motor:wheel)
+tx,0x340,DRIVETRAIN_STATE,100,8,drivetrain_eff_pct,plant_state,16,8,little,FALSE,0.5,0,0,100,92,%,,,Drivetrain efficiency
+tx,0x340,DRIVETRAIN_STATE,100,8,wheel_radius_mm,plant_state,24,16,little,FALSE,1,0,200,500,330,mm,,,Effective wheel radius
+tx,0x340,DRIVETRAIN_STATE,100,8,wheelbase_mm,plant_state,40,16,little,FALSE,1,0,2000,4000,2800,mm,,,Wheelbase
+tx,0x340,DRIVETRAIN_STATE,100,8,track_width_mm,plant_state,56,8,little,FALSE,10,0,1000,2000,1600,mm,,,Track width
+tx,0x3F0,DIAGNOSTIC_STATE,100,8,sim_time_s,plant_state,0,32,little,FALSE,0.001,0,0,10000,0,s,,,Simulation elapsed time
+tx,0x3F0,DIAGNOSTIC_STATE,100,8,loop_time_us,plant_state,32,16,little,FALSE,1,0,0,20000,10000,us,,,Loop execution time
+tx,0x3F0,DIAGNOSTIC_STATE,100,8,error_count,plant_state,48,8,little,FALSE,1,0,0,255,0,count,,,Error counter
+tx,0x3F0,DIAGNOSTIC_STATE,100,8,status,plant_state,56,8,little,FALSE,1,0,0,255,0,flags,,,Diagnostic status flags

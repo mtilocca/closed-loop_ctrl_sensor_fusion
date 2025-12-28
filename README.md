@@ -63,3 +63,32 @@ From repo root:
 go mod tidy
 mkdir -p bin
 go build -o bin/closed_loop_sender ./closed_loop
+
+```
+
+## Closed Loop Control Diagram 
+
+```
+                  ┌──────────────────────────────┐
+                    │   Go Controller              │
+                    │   (reads sensor CAN frames)  │
+                    └──────────┬───────────────────┘
+                               │ CAN TX (0x100 ACTUATOR_CMD_1)
+                               ↓
+┌──────────────────────────────────────────────────────────────┐
+│  C++ Simulator                                                │
+│  ┌────────────┐         ┌────────┐         ┌────────────┐   │
+│  │ CAN RX     │────────>│ Plant  │────────>│  Sensors   │   │
+│  │ Decoder    │  Actuator│ Model  │  Plant  │  (5 types) │   │
+│  │ (0x100)    │  Cmd     │        │  State  │            │   │
+│  └────────────┘         └────────┘         └─────┬──────┘   │
+│                                                    │          │
+│                                                    ↓          │
+│                                            CAN TX (0x200-0x240)
+│                                            Sensor Frames      │
+└──────────────────────────────────────────────────────────────┘
+                               ↑
+                               │ Reads sensor data
+                               └────────────────────┘
+
+```

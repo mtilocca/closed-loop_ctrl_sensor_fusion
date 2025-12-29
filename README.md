@@ -1,4 +1,4 @@
-# dds-fusion-core
+# Closed  Loop Control & Sensor Fusion
 
 ## Purpose
 This repository contains the **embedded real-time brain** of the system.

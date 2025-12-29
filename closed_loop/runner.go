@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"go.einride.tech/can"
@@ -18,14 +19,16 @@ type RunnerConfig struct {
 }
 
 type Runner struct {
-	cfg    RunnerConfig
-	log    *utils.Logger
-	cmap   *utils.CANMap
-	scen   Scenario
-	writer CANWriter
-	reader CANReader // NEW: for receiving sensor feedback
-	fd     *utils.FrameDef
-	pid    *PIDController // NEW: PID controller for velocity mode
+	cfg     RunnerConfig
+	log     *utils.Logger
+	cmap    *utils.CANMap
+	scen    Scenario
+	writer  CANWriter
+	reader  CANReader // NEW: for receiving sensor feedback
+	fd      *utils.FrameDef
+	pid     *PIDController // NEW: PID controller for velocity mode
+	csvFile *os.File       // CSV file for PID logging
+	csvPath string         // Path to CSV file
 }
 
 func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runner, error) {
@@ -61,13 +64,14 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 	}
 
 	r := &Runner{
-		cfg:    cfg,
-		log:    log,
-		cmap:   cmap,
-		scen:   scen,
-		writer: writer,
-		reader: reader,
-		fd:     fd,
+		cfg:     cfg,
+		log:     log,
+		cmap:    cmap,
+		scen:    scen,
+		writer:  writer,
+		reader:  reader,
+		fd:      fd,
+		csvPath: "pid_log.csv",
 	}
 
 	// Initialize PID controller if in velocity_pid mode
@@ -81,12 +85,33 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 			scen.PIDConfig.Kp,
 			scen.PIDConfig.Ki,
 			scen.PIDConfig.Kd)
+
+		// Create CSV log file
+		csvFile, err := os.Create(r.csvPath)
+		if err != nil {
+			return nil, fmt.Errorf("create CSV log: %w", err)
+		}
+		r.csvFile = csvFile
+
+		// Write CSV header
+		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
+			"torque_nm,p_term_nm,i_term_nm,d_term_nm,integral,steering_deg\n")
+		if err != nil {
+			csvFile.Close()
+			return nil, fmt.Errorf("write CSV header: %w", err)
+		}
+
+		log.Info("PID CSV logging to: %s", r.csvPath)
 	}
 
 	return r, nil
 }
 
 func (r *Runner) Close() {
+	if r.csvFile != nil {
+		r.csvFile.Close()
+		r.log.Info("PID CSV log saved to: %s", r.csvPath)
+	}
 	if r.reader != nil {
 		_ = r.reader.Close()
 	}
@@ -162,6 +187,24 @@ func (r *Runner) Run(ctx context.Context) error {
 					diag := r.pid.GetDiagnostics()
 					r.log.Debug("PID: v=%.2f err=%.3f torque=%.1f P=%.1f I=%.1f",
 						currentVelocity, diag.Error, pidTorque, diag.P, diag.I)
+				}
+
+				// Write to CSV every cycle (10 Hz = every cycle at 10ms)
+				if r.csvFile != nil {
+					diag := r.pid.GetDiagnostics()
+					dTerm := pidTorque - diag.P - diag.I
+					fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f\n",
+						t,                         // time_s
+						r.pid.GetTargetVelocity(), // target_velocity_mps
+						currentVelocity,           // actual_velocity_mps
+						diag.Error,                // error_mps
+						pidTorque,                 // torque_nm
+						diag.P,                    // p_term_nm
+						diag.I,                    // i_term_nm
+						dTerm,                     // d_term_nm
+						diag.Integral,             // integral
+						cmd.SteerDeg,              // steering_deg
+					)
 				}
 			}
 

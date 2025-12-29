@@ -14,7 +14,7 @@ func main() {
 	var (
 		iface     = flag.String("iface", "vcan0", "SocketCAN interface name")
 		mapPath   = flag.String("map", "config/can/can_map.csv", "Path to can_map.csv")
-		scenPath  = flag.String("scenario", "closed_loop/slalom_aggressive_60s.json", "Scenario JSON file")
+		scenPath  = flag.String("scenario", "closed_loop/scenarios/constant_velocity_turns.json", "Scenario JSON file")
 		frameName = flag.String("frame", "ACTUATOR_CMD_1", "Frame name to transmit")
 		logLevel  = flag.String("log", "info", "trace|debug|info|warn|error|critical")
 	)
@@ -46,10 +46,30 @@ func main() {
 	}
 	defer runner.Close()
 
+	// Print scenario info
+	log.Info("========================================")
+	log.Info("Scenario: %s (v%d)", runner.scen.Meta.Name, runner.scen.Meta.Version)
+	log.Info("Description: %s", runner.scen.Meta.Description)
+	log.Info("Control Mode: %s", runner.scen.Meta.ControlMode)
+	
+	if runner.scen.Meta.ControlMode == "velocity_pid" && runner.scen.PIDConfig != nil {
+		log.Info("PID Configuration:")
+		log.Info("  Target Velocity: %.2f m/s", runner.scen.PIDConfig.TargetVelocityMPS)
+		log.Info("  Kp: %.1f", runner.scen.PIDConfig.Kp)
+		log.Info("  Ki: %.1f", runner.scen.PIDConfig.Ki)
+		log.Info("  Kd: %.1f", runner.scen.PIDConfig.Kd)
+		log.Info("  Torque Limits: [%.0f, %.0f] Nm", 
+			runner.scen.PIDConfig.MinTorqueNm, 
+			runner.scen.PIDConfig.MaxTorqueNm)
+	}
+	log.Info("========================================")
+
 	if err := runner.Run(ctx); err != nil && err != context.Canceled {
 		log.Critical("Run failed: %v", err)
 		os.Exit(1)
 	}
+
+	log.Info("Shutdown complete")
 }
 
 func parseLevel(s string) utils.LogLevel {

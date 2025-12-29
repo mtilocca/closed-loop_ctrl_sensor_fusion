@@ -22,10 +22,16 @@ build() {
 # Linux
 build linux amd64 ""
 
-# Windows
-build windows amd64 ".exe"
+
+# Linux
+build linux arm64 ""
+
 
 # macOS (Apple Silicon)
 build darwin arm64 ""
+
+# Windows
+build windows amd64 ".exe"
+
 
 echo "Build complete."

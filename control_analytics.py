@@ -257,7 +257,10 @@ def plot_analysis(df, controller_type, output_path):
     
     # Overall title
     fig.suptitle(f'{controller_name} Controller Performance Analysis', 
-                 fontsize=16, fontweight='bold', y=0.995)
+                 fontsize=16, fontweight='bold', y=0.997)
+    
+    # Adjust layout to prevent overlap
+    plt.tight_layout(rect=[0, 0.02, 1, 0.99])
     
     # Save
     plt.savefig(output_path, dpi=150, bbox_inches='tight')

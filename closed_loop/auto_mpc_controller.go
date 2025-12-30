@@ -51,11 +51,11 @@ func NewAutoMPCController(cfg AutoMPCConfig) *AutoMPCController {
 		cfg: cfg,
 
 		// Conservative initial estimates (will adapt quickly)
-		estimatedMass:      8000.0, // Start with medium truck assumption
-		estimatedDrag:      3.0,    // Moderate drag
-		estimatedRolling:   800.0,  // Moderate rolling resistance
-		estimatedMaxTorque: 3000.0, // Will increase if saturates
-		estimatedMaxBrake:  150.0,  // Will increase if saturates (kN)
+		estimatedMass:      240000.0, // Start with medium truck assumption
+		estimatedDrag:      3.0,      // Moderate drag
+		estimatedRolling:   3500.0,   // Moderate rolling resistance
+		estimatedMaxTorque: 30000.0,  // Will increase if saturates
+		estimatedMaxBrake:  150000.0, // Will increase if saturates (kN)
 
 		// Low initial confidence
 		massConfidence:  0.05,
@@ -141,7 +141,7 @@ func (amc *AutoMPCController) adaptVehicleModel(velocity float64, dt float64) {
 	if math.Abs(netControlForce) > 500 {
 		massUpdate := alpha * accelError * netControlForce * 0.01
 		amc.estimatedMass += massUpdate
-		amc.estimatedMass = clampFloat(amc.estimatedMass, 1000, 80000) // 1-80 tons
+		amc.estimatedMass = clampFloat(amc.estimatedMass, 1000, 300000) // 1-80 tons
 		amc.massConfidence = math.Min(0.99, amc.massConfidence+0.002)
 	}
 
@@ -215,9 +215,9 @@ func (amc *AutoMPCController) autoTuneGains(velocity float64, dt float64) {
 	amc.adaptiveKd += (targetKd - amc.adaptiveKd) * 0.01
 
 	// Clamp to reasonable ranges
-	amc.adaptiveKp = clampFloat(amc.adaptiveKp, 10, 500)
-	amc.adaptiveKi = clampFloat(amc.adaptiveKi, 1, 100)
-	amc.adaptiveKd = clampFloat(amc.adaptiveKd, 1, 100)
+	amc.adaptiveKp = clampFloat(amc.adaptiveKp, 10, 5000)
+	amc.adaptiveKi = clampFloat(amc.adaptiveKi, 1, 1000)
+	amc.adaptiveKd = clampFloat(amc.adaptiveKd, 1, 1000)
 }
 
 // computeAdaptiveControl calculates control output
@@ -288,13 +288,13 @@ func (amc *AutoMPCController) detectSaturation(output ControlOutput) {
 	// If we hit torque limit repeatedly, increase estimate
 	if output.TorqueNm >= amc.estimatedMaxTorque*0.99 {
 		amc.estimatedMaxTorque *= 1.05
-		amc.estimatedMaxTorque = math.Min(amc.estimatedMaxTorque, 10000) // Cap at 10kNm
+		amc.estimatedMaxTorque = math.Min(amc.estimatedMaxTorque, 100000) // Cap at 10kNm
 	}
 
 	// If we hit brake limit repeatedly, increase estimate
 	if output.BrakePct >= 98.0 {
 		amc.estimatedMaxBrake *= 1.05
-		amc.estimatedMaxBrake = math.Min(amc.estimatedMaxBrake, 300) // Cap at 300 kN
+		amc.estimatedMaxBrake = math.Min(amc.estimatedMaxBrake, 30000) // Cap at 300 kN
 	}
 
 	amc.limitConfidence = math.Min(0.99, amc.limitConfidence+0.001)

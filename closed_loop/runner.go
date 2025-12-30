@@ -19,16 +19,22 @@ type RunnerConfig struct {
 }
 
 type Runner struct {
-	cfg     RunnerConfig
-	log     *utils.Logger
-	cmap    *utils.CANMap
-	scen    Scenario
-	writer  CANWriter
-	reader  CANReader // NEW: for receiving sensor feedback
-	fd      *utils.FrameDef
-	pid     *PIDController // NEW: PID controller for velocity mode
-	csvFile *os.File       // CSV file for PID logging
-	csvPath string         // Path to CSV file
+	cfg    RunnerConfig
+	log    *utils.Logger
+	cmap   *utils.CANMap
+	scen   Scenario
+	writer CANWriter
+	reader CANReader
+	fd     *utils.FrameDef
+
+	// Controllers (only one active at a time)
+	pid     *PIDController
+	mpc     *MPCController
+	autoMPC *AutoMPCController // Added Auto-MPC support
+
+	// CSV logging
+	csvFile *os.File
+	csvPath string
 }
 
 func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runner, error) {
@@ -71,11 +77,12 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		writer:  writer,
 		reader:  reader,
 		fd:      fd,
-		csvPath: "pid_log.csv",
+		csvPath: "controller_log.csv",
 	}
 
-	// Initialize PID controller if in velocity_pid mode
-	if scen.Meta.ControlMode == "velocity_pid" {
+	// Initialize appropriate controller based on control mode
+	switch scen.Meta.ControlMode {
+	case "velocity_pid":
 		if scen.PIDConfig == nil {
 			return nil, fmt.Errorf("velocity_pid mode requires pid_config in scenario")
 		}
@@ -86,22 +93,77 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 			scen.PIDConfig.Ki,
 			scen.PIDConfig.Kd)
 
-		// Create CSV log file
+		// Create CSV log file for PID
 		csvFile, err := os.Create(r.csvPath)
 		if err != nil {
 			return nil, fmt.Errorf("create CSV log: %w", err)
 		}
 		r.csvFile = csvFile
 
-		// Write CSV header
+		// PID CSV header
 		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
-			"torque_nm,p_term_nm,i_term_nm,d_term_nm,integral,steering_deg\n")
+			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral,steering_deg\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
 		}
-
 		log.Info("PID CSV logging to: %s", r.csvPath)
+
+	case "velocity_mpc":
+		if scen.MPCConfig == nil {
+			return nil, fmt.Errorf("velocity_mpc mode requires mpc_config in scenario")
+		}
+		r.mpc = NewMPCController(*scen.MPCConfig)
+		log.Info("MPC controller initialized: target=%.2f m/s, horizon=%d, adaptation=%v",
+			scen.MPCConfig.TargetVelocityMPS,
+			scen.MPCConfig.PredictionHorizon,
+			scen.MPCConfig.EnableAdaptation)
+
+		// Create CSV log file for MPC
+		csvFile, err := os.Create(r.csvPath)
+		if err != nil {
+			return nil, fmt.Errorf("create CSV log: %w", err)
+		}
+		r.csvFile = csvFile
+
+		// MPC CSV header
+		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
+			"torque_nm,brake_pct,is_accel,is_brake,est_mass_kg,est_drag,model_conf,steering_deg\n")
+		if err != nil {
+			csvFile.Close()
+			return nil, fmt.Errorf("write CSV header: %w", err)
+		}
+		log.Info("MPC CSV logging to: %s", r.csvPath)
+
+	case "auto_mpc":
+		if scen.AutoMPCConfig == nil {
+			return nil, fmt.Errorf("auto_mpc mode requires auto_mpc_config in scenario")
+		}
+		r.autoMPC = NewAutoMPCController(*scen.AutoMPCConfig)
+		log.Info("Auto-MPC initialized: target=%.2f m/s, autonomous learning enabled",
+			scen.AutoMPCConfig.TargetVelocityMPS)
+
+		// CSV for auto-MPC
+		csvFile, err := os.Create(r.csvPath)
+		if err != nil {
+			return nil, fmt.Errorf("create CSV log: %w", err)
+		}
+		r.csvFile = csvFile
+
+		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps," +
+			"torque_nm,brake_pct,est_mass_kg,est_drag,est_max_torque,est_max_brake," +
+			"mass_conf,kp,ki,kd,steering_deg\n")
+		if err != nil {
+			csvFile.Close()
+			return nil, fmt.Errorf("write CSV header: %w", err)
+		}
+		log.Info("Auto-MPC CSV logging to: %s", r.csvPath)
+
+	case "open_loop", "":
+		log.Info("Open-loop mode (no controller)")
+
+	default:
+		return nil, fmt.Errorf("unsupported control mode: %s", scen.Meta.ControlMode)
 	}
 
 	return r, nil
@@ -110,7 +172,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 func (r *Runner) Close() {
 	if r.csvFile != nil {
 		r.csvFile.Close()
-		r.log.Info("PID CSV log saved to: %s", r.csvPath)
+		r.log.Info("Controller CSV log saved to: %s", r.csvPath)
 	}
 	if r.reader != nil {
 		_ = r.reader.Close()
@@ -156,7 +218,6 @@ func (r *Runner) Run(ctx context.Context) error {
 			// Update current velocity from sensor feedback
 			currentVelocity = feedback.VelocityMPS
 			lastRxTime = time.Now()
-			r.log.Trace("RX velocity=%.3f m/s", currentVelocity)
 
 		case now := <-ticker.C:
 			elapsed := now.Sub(start)
@@ -170,42 +231,31 @@ func (r *Runner) Run(ctx context.Context) error {
 
 			// Check if we're receiving sensor data
 			rxAge := now.Sub(lastRxTime)
-			if rxAge > 500*time.Millisecond && r.scen.Meta.ControlMode == "velocity_pid" {
-				r.log.Warn("No sensor feedback for %.1f ms - PID may be unreliable", rxAge.Seconds()*1000)
+			if rxAge > 500*time.Millisecond && (r.pid != nil || r.mpc != nil || r.autoMPC != nil) {
+				r.log.Warn("No sensor feedback for %.1f ms - controller may be unreliable", rxAge.Seconds()*1000)
 			}
 
 			// Evaluate base command from scenario
 			cmd := EvalActCmd(&r.scen, t)
 
-			// Override torque with PID if in velocity_pid mode
-			if r.scen.Meta.ControlMode == "velocity_pid" && r.pid != nil {
-				pidTorque := r.pid.Update(currentVelocity, dt)
-				cmd.TorqueNm = pidTorque
-
-				// Log PID diagnostics periodically
-				if sent%100 == 0 {
-					diag := r.pid.GetDiagnostics()
-					r.log.Debug("PID: v=%.2f err=%.3f torque=%.1f P=%.1f I=%.1f",
-						currentVelocity, diag.Error, pidTorque, diag.P, diag.I)
+			// Apply controller based on mode
+			switch r.scen.Meta.ControlMode {
+			case "velocity_pid":
+				if r.pid != nil {
+					r.applyPID(&cmd, currentVelocity, dt, t, sent)
 				}
 
-				// Write to CSV every cycle (10 Hz = every cycle at 10ms)
-				if r.csvFile != nil {
-					diag := r.pid.GetDiagnostics()
-					dTerm := pidTorque - diag.P - diag.I
-					fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f\n",
-						t,                         // time_s
-						r.pid.GetTargetVelocity(), // target_velocity_mps
-						currentVelocity,           // actual_velocity_mps
-						diag.Error,                // error_mps
-						pidTorque,                 // torque_nm
-						diag.P,                    // p_term_nm
-						diag.I,                    // i_term_nm
-						dTerm,                     // d_term_nm
-						diag.Integral,             // integral
-						cmd.SteerDeg,              // steering_deg
-					)
+			case "velocity_mpc":
+				if r.mpc != nil {
+					r.applyMPC(&cmd, currentVelocity, dt, t, sent)
 				}
+
+			case "auto_mpc":
+				if r.autoMPC != nil {
+					r.applyAutoMPC(&cmd, currentVelocity, dt, t, sent)
+				}
+
+				// case "open_loop" - use cmd as-is from scenario
 			}
 
 			// Encode and transmit CAN frame
@@ -229,10 +279,123 @@ func (r *Runner) Run(ctx context.Context) error {
 			}
 
 			sent++
-			r.log.Trace("TX t=%.3f id=0x%X len=%d data=% X enable=%v mode=%.0f steer=%.2f torque=%.2f brake=%.2f",
-				t, uint32(frame.ID), frame.Length, frame.Data[:frame.Length],
-				cmd.SystemEnable, cmd.Mode, cmd.SteerDeg, cmd.TorqueNm, cmd.BrakePct)
+			if sent%1000 == 0 {
+				r.log.Trace("TX t=%.3f id=0x%X torque=%.1f brake=%.1f steer=%.1f",
+					t, uint32(frame.ID), cmd.TorqueNm, cmd.BrakePct, cmd.SteerDeg)
+			}
 		}
+	}
+}
+
+// applyPID updates command with PID controller output
+func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t float64, iter uint64) {
+	pidTorque := r.pid.Update(velocity, dt)
+	cmd.TorqueNm = pidTorque
+	cmd.BrakePct = 0 // PID only uses throttle
+
+	// Log diagnostics periodically
+	if iter%100 == 0 {
+		diag := r.pid.GetDiagnostics()
+		r.log.Debug("PID: v=%.2f err=%.3f torque=%.1f P=%.1f I=%.1f",
+			velocity, diag.Error, pidTorque, diag.P, diag.I)
+	}
+
+	// Write to CSV every cycle
+	if r.csvFile != nil {
+		diag := r.pid.GetDiagnostics()
+		dTerm := pidTorque - diag.P - diag.I
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f\n",
+			t,
+			r.pid.GetTargetVelocity(),
+			velocity,
+			diag.Error,
+			pidTorque,
+			cmd.BrakePct,
+			diag.P,
+			diag.I,
+			dTerm,
+			diag.Integral,
+			cmd.SteerDeg,
+		)
+	}
+}
+
+// applyMPC updates command with MPC controller output
+func (r *Runner) applyMPC(cmd *ActuatorCmd, velocity float64, dt float64, t float64, iter uint64) {
+	output := r.mpc.Update(velocity, dt)
+
+	cmd.TorqueNm = output.TorqueNm
+	cmd.BrakePct = output.BrakePct
+
+	// Log diagnostics periodically
+	if iter%100 == 0 {
+		diag := r.mpc.GetDiagnostics()
+		error := r.mpc.GetTargetVelocity() - velocity
+
+		r.log.Debug("MPC: v=%.2f err=%.3f torque=%.1f brake=%.1f mass=%.0f conf=%.2f %s",
+			velocity, error, output.TorqueNm, output.BrakePct,
+			diag.EstimatedMass, diag.ModelConfidence,
+			getControlModeStr(output))
+	}
+
+	// Write to CSV every cycle
+	if r.csvFile != nil {
+		diag := r.mpc.GetDiagnostics()
+		error := r.mpc.GetTargetVelocity() - velocity
+
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.1f,%.3f,%.2f,%.2f\n",
+			t,
+			r.mpc.GetTargetVelocity(),
+			velocity,
+			error,
+			output.TorqueNm,
+			output.BrakePct,
+			boolToInt(output.IsAccel),
+			boolToInt(output.IsBrake),
+			diag.EstimatedMass,
+			diag.EstimatedDrag,
+			diag.ModelConfidence,
+			cmd.SteerDeg,
+		)
+	}
+}
+
+// applyAutoMPC updates command with Auto-MPC controller output
+func (r *Runner) applyAutoMPC(cmd *ActuatorCmd, velocity float64, dt float64, t float64, iter uint64) {
+	output := r.autoMPC.Update(velocity, dt)
+
+	cmd.TorqueNm = output.TorqueNm
+	cmd.BrakePct = output.BrakePct
+
+	if iter%100 == 0 {
+		diag := r.autoMPC.GetDiagnostics()
+		error := r.autoMPC.GetTargetVelocity() - velocity
+
+		r.log.Debug("AUTO: v=%.2f err=%.3f torque=%.0f brake=%.1f mass=%.0f conf=%.2f Kp=%.1f %s",
+			velocity, error, output.TorqueNm, output.BrakePct,
+			diag.EstimatedMass, diag.MassConfidence, diag.AdaptiveKp,
+			getControlModeStr(output))
+	}
+
+	if r.csvFile != nil {
+		diag := r.autoMPC.GetDiagnostics()
+
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.1f,%.1f,%.2f,%.1f,%.1f,%.1f,%.2f\n",
+			t,
+			r.autoMPC.GetTargetVelocity(),
+			velocity,
+			output.TorqueNm,
+			output.BrakePct,
+			diag.EstimatedMass,
+			diag.EstimatedDrag,
+			diag.EstimatedMaxTorque,
+			diag.EstimatedMaxBrake,
+			diag.MassConfidence,
+			diag.AdaptiveKp,
+			diag.AdaptiveKi,
+			diag.AdaptiveKd,
+			cmd.SteerDeg,
+		)
 	}
 }
 
@@ -262,14 +425,9 @@ func (r *Runner) receiveLoop(ctx context.Context, feedback chan<- SensorFeedback
 				continue
 			}
 
-			// Decode relevant sensor frames
-			// Use VEHICLE_STATE_1 (0x300) for truth velocity feedback
-			// This is more reliable than GNSS during PID tuning
-
-			if frame.ID == 0x300 { // VEHICLE_STATE_1 frame contains truth velocity
-				// Decode velocity from VEHICLE_STATE_1 frame
+			// Decode VEHICLE_STATE_1 (0x300) for truth velocity
+			if frame.ID == 0x300 {
 				// vehicle_speed_mps: start_bit=0, length=16, signed, factor=0.01
-
 				velocity := r.decodeSignal(frame.Data[:], 0, 16, true, 0.01, 0.0)
 
 				select {
@@ -281,8 +439,6 @@ func (r *Runner) receiveLoop(ctx context.Context, feedback chan<- SensorFeedback
 					// Channel full, skip
 				}
 			}
-
-			r.log.Trace("RX id=0x%X len=%d data=% X", uint32(frame.ID), frame.Length, frame.Data[:frame.Length])
 		}
 	}
 }
@@ -321,5 +477,5 @@ func (r *Runner) decodeSignal(data []byte, startBit, bitLength int, isSigned boo
 	return float64(rawValue)*factor + offset
 }
 
-// compile-time assurance the transmitted frame type is what we expect
+// compile-time assurance
 var _ can.Frame

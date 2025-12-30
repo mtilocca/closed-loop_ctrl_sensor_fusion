@@ -1,11 +1,21 @@
-./bin/closed_loop_sender -log trace
+cd ~/repos/closed-loop_ctrl_sensor_fusion
 
+./build.sh
 
-go mod init dds-fusion-core
-go get golang.org/x/sys/unix@latest
-go mod tidy
+# PID - Gentle Slalom
+./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/gentle_slalom_pid.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
 
-go build -o bin/closed_loop_sender ./closed_loop
+# MPC - Gentle Slalom
+./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/gentle_slalom_mpc.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
 
+# Auto-MPC - Gentle Slalom
+./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/gentle_slalom_auto_mpc.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
 
-./bin/closed_loop_sender   -iface vcan0   -map config/can/can_map.csv   -scenario closed_loop/scenarios/slalom.json   -frame ACTUATOR_CMD_1   -log info
+# PID - Aggressive Hairpins
+./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/aggressive_hairpins_pid.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
+
+# MPC - Aggressive Hairpins
+./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/aggressive_hairpins_mpc.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
+
+# Auto-MPC - Aggressive Hairpins
+./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/aggressive_hairpins_auto_mpc.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug

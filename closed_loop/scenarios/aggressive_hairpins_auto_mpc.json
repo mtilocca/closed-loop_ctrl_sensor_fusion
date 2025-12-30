@@ -1,0 +1,106 @@
+{
+    "meta": {
+      "name": "aggressive_hairpins_auto_mpc",
+      "version": 1,
+      "description": "Aggressive hairpin turns - Auto-MPC adapts to ANY vehicle under extreme stress",
+      "control_mode": "auto_mpc"
+    },
+    "timing": {
+      "dt_s": 0.01,
+      "duration_s": 60.0,
+      "log_hz": 10.0,
+      "real_time_mode": true
+    },
+    "auto_mpc_config": {
+      "target_velocity_mps": 8.0,
+      "aggressive_tuning": false,
+      "learning_rate": 0.01
+    },
+    "defaults": {
+      "system_enable": true,
+      "mode": 0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0
+    },
+    "segments": [
+      {
+        "t0": 0.0,
+        "t1": 5.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Rapid learning phase - identifies vehicle type"
+      },
+      {
+        "t0": 5.0,
+        "t1": 8.0,
+        "steer_cmd_deg": 20.0,
+        "comment": "First hairpin - learns braking needs"
+      },
+      {
+        "t0": 8.0,
+        "t1": 13.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Recovery - auto-tunes for rapid response"
+      },
+      {
+        "t0": 13.0,
+        "t1": 16.0,
+        "steer_cmd_deg": -20.0,
+        "comment": "Second hairpin - validates learning"
+      },
+      {
+        "t0": 16.0,
+        "t1": 21.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Convergence - gains adapting to stress"
+      },
+      {
+        "t0": 21.0,
+        "t1": 24.0,
+        "steer_cmd_deg": 25.0,
+        "comment": "Extreme right - discovers actuator limits"
+      },
+      {
+        "t0": 24.0,
+        "t1": 29.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "High confidence recovery"
+      },
+      {
+        "t0": 29.0,
+        "t1": 32.0,
+        "steer_cmd_deg": -25.0,
+        "comment": "Extreme left - fully adapted control"
+      },
+      {
+        "t0": 32.0,
+        "t1": 37.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Peak performance - autonomous excellence"
+      },
+      {
+        "t0": 37.0,
+        "t1": 40.0,
+        "steer_cmd_deg": 18.0,
+        "comment": "Sharp right - demonstrating mastery"
+      },
+      {
+        "t0": 40.0,
+        "t1": 45.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Effortless stabilization"
+      },
+      {
+        "t0": 45.0,
+        "t1": 48.0,
+        "steer_cmd_deg": -18.0,
+        "comment": "Final test - zero configuration needed"
+      },
+      {
+        "t0": 48.0,
+        "t1": -1.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Perfect control - vehicle-agnostic success"
+      }
+    ]
+  }

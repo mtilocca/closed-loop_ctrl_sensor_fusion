@@ -1,16 +1,5 @@
 package main
 
-// PIDConfig holds PID controller parameters
-type PIDConfig struct {
-	TargetVelocityMPS float64 `json:"target_velocity_mps"`
-	Kp                float64 `json:"kp"`
-	Ki                float64 `json:"ki"`
-	Kd                float64 `json:"kd"`
-	MaxTorqueNm       float64 `json:"max_torque_nm"`
-	MinTorqueNm       float64 `json:"min_torque_nm"`
-	IntegralLimit     float64 `json:"integral_limit"`
-}
-
 // PIDController implements a discrete PID controller for velocity tracking
 type PIDController struct {
 	cfg PIDConfig

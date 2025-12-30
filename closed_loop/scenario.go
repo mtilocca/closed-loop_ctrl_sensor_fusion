@@ -8,11 +8,14 @@ import (
 
 // Scenario defines a complete test scenario
 type Scenario struct {
-	Meta      ScenarioMeta      `json:"meta"`
-	Timing    ScenarioTiming    `json:"timing"`
-	Defaults  ActuatorCmd       `json:"defaults"`
-	Segments  []ScenarioSegment `json:"segments"`
-	PIDConfig *PIDConfig        `json:"pid_config,omitempty"` // Optional PID config
+	Meta              ScenarioMeta       `json:"meta"`
+	Timing            ScenarioTiming     `json:"timing"`
+	Defaults          ActuatorCmd        `json:"defaults"`
+	Segments          []ScenarioSegment  `json:"segments"`
+	PIDConfig         *PIDConfig         `json:"pid_config,omitempty"`          // Optional PID config
+	AdaptivePIDConfig *AdaptivePIDConfig `json:"adaptive_pid_config,omitempty"` // Optional Adaptive PID config
+	MPCConfig         *MPCConfig         `json:"mpc_config,omitempty"`          // Optional MPC config
+	AutoMPCConfig     *AutoMPCConfig     `json:"auto_mpc_config,omitempty"`     // Optional Auto-MPC config
 }
 
 // ScenarioMeta contains scenario metadata
@@ -20,7 +23,7 @@ type ScenarioMeta struct {
 	Name        string `json:"name"`
 	Version     int    `json:"version"`
 	Description string `json:"description"`
-	ControlMode string `json:"control_mode,omitempty"` // "open_loop" or "velocity_pid"
+	ControlMode string `json:"control_mode,omitempty"` // "open_loop", "velocity_pid", "adaptive_velocity_pid", "velocity_mpc", or "auto_mpc"
 }
 
 // ScenarioTiming defines timing parameters
@@ -33,12 +36,12 @@ type ScenarioTiming struct {
 
 // ScenarioSegment defines a time segment with actuator commands
 type ScenarioSegment struct {
-	T0      float64 `json:"t0"`
-	T1      float64 `json:"t1"`
+	T0       float64 `json:"t0"`
+	T1       float64 `json:"t1"`
 	SteerDeg float64 `json:"steer_cmd_deg,omitempty"`
 	TorqueNm float64 `json:"drive_torque_cmd_nm,omitempty"`
 	BrakePct float64 `json:"brake_cmd_pct,omitempty"`
-	Comment string  `json:"comment,omitempty"`
+	Comment  string  `json:"comment,omitempty"`
 }
 
 // ActuatorCmd represents a complete actuator command set
@@ -82,6 +85,19 @@ func LoadScenario(path string) (Scenario, error) {
 		}
 	}
 
+	// Validate adaptive PID config if in adaptive_velocity_pid mode
+	if scen.Meta.ControlMode == "adaptive_velocity_pid" {
+		if scen.AdaptivePIDConfig == nil {
+			return Scenario{}, fmt.Errorf("adaptive_velocity_pid mode requires adaptive_pid_config")
+		}
+		if scen.AdaptivePIDConfig.TargetVelocityMPS <= 0 {
+			return Scenario{}, fmt.Errorf("invalid target_velocity_mps: %f", scen.AdaptivePIDConfig.TargetVelocityMPS)
+		}
+		if scen.AdaptivePIDConfig.VehicleMassKg <= 0 {
+			return Scenario{}, fmt.Errorf("invalid vehicle_mass_kg: %f", scen.AdaptivePIDConfig.VehicleMassKg)
+		}
+	}
+
 	return scen, nil
 }
 
@@ -108,11 +124,4 @@ func EvalActCmd(scen *Scenario, t float64) ActuatorCmd {
 	}
 
 	return cmd
-}
-
-func boolToFloat(b bool) float64 {
-	if b {
-		return 1.0
-	}
-	return 0.0
 }

@@ -19,3 +19,15 @@ cd ~/repos/closed-loop_ctrl_sensor_fusion
 
 # Auto-MPC - Aggressive Hairpins
 ./bin/closed_loop_sender_linux_amd64 -scenario closed_loop/scenarios/aggressive_hairpins_auto_mpc.json -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
+
+
+
+
+# PID
+python3 analyze_controller.py gentle_slalom_pid.csv 1
+
+# MPC  
+python3 analyze_controller.py gentle_slalom_mpc.csv 2
+
+# Auto-MPC
+python3 analyze_controller.py gentle_slalom_auto_mpc.csv 3

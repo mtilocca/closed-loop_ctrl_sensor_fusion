@@ -69,6 +69,9 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		return nil, err
 	}
 
+	// Generate CSV filename from scenario name
+	csvPath := generateCSVFilename(cfg.ScenarioPath, scen.Meta.ControlMode)
+
 	r := &Runner{
 		cfg:     cfg,
 		log:     log,
@@ -77,7 +80,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		writer:  writer,
 		reader:  reader,
 		fd:      fd,
-		csvPath: "controller_log.csv",
+		csvPath: csvPath,
 	}
 
 	// Initialize appropriate controller based on control mode
@@ -100,9 +103,10 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		}
 		r.csvFile = csvFile
 
-		// PID CSV header
+		// PID CSV header (unified format)
 		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
-			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral,steering_deg\n")
+			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
+			"est_mass_kg,est_drag,model_conf,steering_deg\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
@@ -126,9 +130,10 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		}
 		r.csvFile = csvFile
 
-		// MPC CSV header
+		// MPC CSV header (unified format)
 		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
-			"torque_nm,brake_pct,is_accel,is_brake,est_mass_kg,est_drag,model_conf,steering_deg\n")
+			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
+			"est_mass_kg,est_drag,model_conf,steering_deg\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
@@ -150,9 +155,10 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		}
 		r.csvFile = csvFile
 
-		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps," +
-			"torque_nm,brake_pct,est_mass_kg,est_drag,est_max_torque,est_max_brake," +
-			"mass_conf,kp,ki,kd,steering_deg\n")
+		// Auto-MPC CSV header (unified format)
+		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
+			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
+			"est_mass_kg,est_drag,model_conf,steering_deg\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
@@ -300,11 +306,11 @@ func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 			velocity, diag.Error, pidTorque, diag.P, diag.I)
 	}
 
-	// Write to CSV every cycle
+	// Write to CSV every cycle (unified format)
 	if r.csvFile != nil {
 		diag := r.pid.GetDiagnostics()
 		dTerm := pidTorque - diag.P - diag.I
-		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f\n",
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
 			t,
 			r.pid.GetTargetVelocity(),
 			velocity,
@@ -315,6 +321,9 @@ func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 			diag.I,
 			dTerm,
 			diag.Integral,
+			0.0, // est_mass (PID doesn't estimate)
+			0.0, // est_drag (PID doesn't estimate)
+			1.0, // model_conf (PID has no model)
 			cmd.SteerDeg,
 		)
 	}
@@ -338,20 +347,22 @@ func (r *Runner) applyMPC(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 			getControlModeStr(output))
 	}
 
-	// Write to CSV every cycle
+	// Write to CSV every cycle (unified format)
 	if r.csvFile != nil {
 		diag := r.mpc.GetDiagnostics()
 		error := r.mpc.GetTargetVelocity() - velocity
 
-		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.1f,%.3f,%.2f,%.2f\n",
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
 			t,
 			r.mpc.GetTargetVelocity(),
 			velocity,
 			error,
 			output.TorqueNm,
 			output.BrakePct,
-			boolToInt(output.IsAccel),
-			boolToInt(output.IsBrake),
+			0.0, // p_term (MPC doesn't have PID terms)
+			0.0, // i_term
+			0.0, // d_term
+			0.0, // integral
 			diag.EstimatedMass,
 			diag.EstimatedDrag,
 			diag.ModelConfidence,
@@ -379,21 +390,27 @@ func (r *Runner) applyAutoMPC(cmd *ActuatorCmd, velocity float64, dt float64, t 
 
 	if r.csvFile != nil {
 		diag := r.autoMPC.GetDiagnostics()
+		error := r.autoMPC.GetTargetVelocity() - velocity
 
-		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.1f,%.1f,%.2f,%.1f,%.1f,%.1f,%.2f\n",
+		// Calculate PID-like terms for comparison
+		pTerm := diag.AdaptiveKp * error
+		iTerm := diag.AdaptiveKi * error * dt    // Approximate
+		dTerm := output.TorqueNm - pTerm - iTerm // Residual
+
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
 			t,
 			r.autoMPC.GetTargetVelocity(),
 			velocity,
+			error,
 			output.TorqueNm,
 			output.BrakePct,
+			pTerm, // Adaptive P term
+			iTerm, // Adaptive I term
+			dTerm, // Adaptive D term
+			0.0,   // integral (not directly available)
 			diag.EstimatedMass,
 			diag.EstimatedDrag,
-			diag.EstimatedMaxTorque,
-			diag.EstimatedMaxBrake,
 			diag.MassConfidence,
-			diag.AdaptiveKp,
-			diag.AdaptiveKi,
-			diag.AdaptiveKd,
 			cmd.SteerDeg,
 		)
 	}
@@ -479,3 +496,5 @@ func (r *Runner) decodeSignal(data []byte, startBit, bitLength int, isSigned boo
 
 // compile-time assurance
 var _ can.Frame
+
+// generateCSVFilename creates a descriptive CSV filename from scenario pa

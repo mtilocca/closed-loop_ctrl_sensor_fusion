@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"dds-fusion-core/utils"
@@ -51,16 +54,27 @@ func main() {
 	log.Info("Scenario: %s (v%d)", runner.scen.Meta.Name, runner.scen.Meta.Version)
 	log.Info("Description: %s", runner.scen.Meta.Description)
 	log.Info("Control Mode: %s", runner.scen.Meta.ControlMode)
-	
+	log.Info("CSV Output: %s", runner.csvPath)
+
 	if runner.scen.Meta.ControlMode == "velocity_pid" && runner.scen.PIDConfig != nil {
 		log.Info("PID Configuration:")
 		log.Info("  Target Velocity: %.2f m/s", runner.scen.PIDConfig.TargetVelocityMPS)
 		log.Info("  Kp: %.1f", runner.scen.PIDConfig.Kp)
 		log.Info("  Ki: %.1f", runner.scen.PIDConfig.Ki)
 		log.Info("  Kd: %.1f", runner.scen.PIDConfig.Kd)
-		log.Info("  Torque Limits: [%.0f, %.0f] Nm", 
-			runner.scen.PIDConfig.MinTorqueNm, 
+		log.Info("  Torque Limits: [%.0f, %.0f] Nm",
+			runner.scen.PIDConfig.MinTorqueNm,
 			runner.scen.PIDConfig.MaxTorqueNm)
+	} else if runner.scen.Meta.ControlMode == "velocity_mpc" && runner.scen.MPCConfig != nil {
+		log.Info("MPC Configuration:")
+		log.Info("  Target Velocity: %.2f m/s", runner.scen.MPCConfig.TargetVelocityMPS)
+		log.Info("  Prediction Horizon: %d steps", runner.scen.MPCConfig.PredictionHorizon)
+		log.Info("  Adaptation: %v", runner.scen.MPCConfig.EnableAdaptation)
+	} else if runner.scen.Meta.ControlMode == "auto_mpc" && runner.scen.AutoMPCConfig != nil {
+		log.Info("Auto-MPC Configuration:")
+		log.Info("  Target Velocity: %.2f m/s", runner.scen.AutoMPCConfig.TargetVelocityMPS)
+		log.Info("  Aggressive Tuning: %v", runner.scen.AutoMPCConfig.AggressiveTuning)
+		log.Info("  Learning Rate: %.3f", runner.scen.AutoMPCConfig.LearningRate)
 	}
 	log.Info("========================================")
 
@@ -70,6 +84,7 @@ func main() {
 	}
 
 	log.Info("Shutdown complete")
+	log.Info("Results saved to: %s", runner.csvPath)
 }
 
 func parseLevel(s string) utils.LogLevel {
@@ -89,4 +104,18 @@ func parseLevel(s string) utils.LogLevel {
 	default:
 		return utils.INFO
 	}
+}
+
+// generateCSVFilename creates a descriptive CSV filename from scenario path and control mode
+func generateCSVFilename(scenarioPath string, controlMode string) string {
+	// Extract scenario name from path
+	// e.g., "closed_loop/scenarios/gentle_slalom_pid.json" -> "gentle_slalom_pid"
+	basename := filepath.Base(scenarioPath)
+	scenarioName := strings.TrimSuffix(basename, filepath.Ext(basename))
+
+	// Create filename: <scenario_name>_<control_mode>.csv
+	// e.g., "gentle_slalom_pid_velocity_pid.csv" or just "gentle_slalom_pid.csv"
+	filename := fmt.Sprintf("%s.csv", scenarioName)
+
+	return filename
 }

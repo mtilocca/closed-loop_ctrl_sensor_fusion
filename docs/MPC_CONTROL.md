@@ -58,8 +58,6 @@ flowchart LR
     D --> E[Measure New<br/>State x[k+1]]
     E --> A
     
-    style C fill:#4CAF50
-    style D fill:#FF9800
 ```
 
 **At each timestep:**

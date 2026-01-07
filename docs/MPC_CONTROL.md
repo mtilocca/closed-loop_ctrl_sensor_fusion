@@ -52,14 +52,15 @@
 
 ```mermaid
 flowchart LR
-    A[Current State<br/>x[k]] --> B[Predict Future<br/>N steps ahead]
-    B --> C[Optimize Control<br/>u[0]...u[N-1]]
-    C --> D[Apply First<br/>Control u[0]]
-    D --> E[Measure New<br/>State x[k+1]]
+    A["Current State<br/>x(k)"] --> B["Predict Future<br/>N steps ahead"]
+    B --> C["Optimize Control<br/>u(0)...u(N-1)"]
+    C --> D["Apply First<br/>Control u(0)"]
+    D --> E["Measure New<br/>State x(k+1)"]
     E --> A
     
     style C fill:#4CAF50
     style D fill:#FF9800
+    
 ```
 
 **At each timestep:**

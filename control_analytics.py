@@ -89,7 +89,7 @@ def plot_analysis(df, controller_type, output_path):
     """Create comprehensive analysis plots for any controller."""
     controller_name = CONTROLLER_NAMES[controller_type]
     
-    fig = plt.figure(figsize=(18, 14))
+    fig = plt.figure(figsize=(24, 24))
     gs = GridSpec(5, 2, figure=fig, hspace=0.3, wspace=0.3)
     
     time = df['time_s'].values

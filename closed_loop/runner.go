@@ -294,32 +294,54 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 // applyPID updates command with PID controller output
+// UPDATED applyPID FUNCTION FOR runner.go
+// Replace your existing applyPID function with this one
+
+// applyPID updates command with PID controller output
 func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t float64, iter uint64) {
-	pidTorque := r.pid.Update(velocity, dt)
-	cmd.TorqueNm = pidTorque
-	cmd.BrakePct = 0 // PID only uses throttle
+	// Get control output with automatic brake conversion
+	output := r.pid.Update(velocity, dt)
+
+	// Apply motor torque and brake commands
+	cmd.TorqueNm = output.TorqueNm
+	cmd.BrakePct = output.BrakePct
 
 	// Log diagnostics periodically
 	if iter%100 == 0 {
 		diag := r.pid.GetDiagnostics()
-		r.log.Debug("PID: v=%.2f err=%.3f torque=%.1f P=%.1f I=%.1f",
-			velocity, diag.Error, pidTorque, diag.P, diag.I)
+		controlMode := "ACCEL"
+		if output.IsBrake {
+			controlMode = "BRAKE"
+		}
+		r.log.Debug("PID: v=%.2f err=%.3f torque=%.1f brake=%.1f P=%.1f I=%.1f [%s]",
+			velocity, diag.Error, output.TorqueNm, output.BrakePct, diag.P, diag.I, controlMode)
 	}
 
 	// Write to CSV every cycle (unified format)
 	if r.csvFile != nil {
 		diag := r.pid.GetDiagnostics()
-		dTerm := pidTorque - diag.P - diag.I
+
+		// Calculate D term by subtracting P and I from total output
+		// Note: For brake commands, output.TorqueNm is 0, so we need to reconstruct
+		var dTermApprox float64
+		if output.IsAccel {
+			dTermApprox = output.TorqueNm - diag.P - diag.I
+		} else {
+			// When braking, reconstruct negative torque then subtract P and I
+			brakeTorqueEquiv := -(output.BrakePct / 100.0) * 12536.0 // Approximate
+			dTermApprox = brakeTorqueEquiv - diag.P - diag.I
+		}
+
 		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
 			t,
 			r.pid.GetTargetVelocity(),
 			velocity,
 			diag.Error,
-			pidTorque,
-			cmd.BrakePct,
+			output.TorqueNm, // Now 0 when braking
+			output.BrakePct, // Now includes actual brake percentage!
 			diag.P,
 			diag.I,
-			dTerm,
+			dTermApprox,
 			diag.Integral,
 			0.0, // est_mass (PID doesn't estimate)
 			0.0, // est_drag (PID doesn't estimate)

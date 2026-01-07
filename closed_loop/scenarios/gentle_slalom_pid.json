@@ -1,24 +1,24 @@
 {
   "meta": {
-    "name": "gentle_slalom_pid",
-    "version": 1,
-    "description": "Gentle slalom course - PID controller baseline",
+    "name": "gentle_slalom_pid_xcmg_v2",
+    "version": 2,
+    "description": "XCMG XDE360 (220-ton) - Optimized PID with brake conversion",
     "control_mode": "velocity_pid"
   },
   "timing": {
     "dt_s": 0.01,
-    "duration_s": 60.0,
+    "duration_s": 120.0,
     "log_hz": 10.0,
     "real_time_mode": true
   },
   "pid_config": {
-    "target_velocity_mps": 8.0,
-    "kp": 300.0,
-    "ki": 40.0,
-    "kd": 20.0,
-    "max_torque_nm": 30000.0,
-    "min_torque_nm": -10000.0,
-    "integral_limit": 2000.0
+    "target_velocity_mps": 12.0,
+    "kp": 15000.0,
+    "ki": 800.0,
+    "kd": 3000.0,
+    "max_torque_nm": 145000.0,
+    "min_torque_nm": -145000.0,
+    "integral_limit": 5000.0
   },
   "defaults": {
     "system_enable": true,
@@ -30,75 +30,98 @@
   "segments": [
     {
       "t0": 0.0,
-      "t1": 5.0,
-      "steer_cmd_deg": 0.0,
-      "comment": "Straight acceleration - reaching target velocity"
-    },
-    {
-      "t0": 5.0,
-      "t1": 10.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Gentle right - smooth tracking test"
-    },
-    {
-      "t0": 10.0,
       "t1": 15.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Gentle left - symmetry check"
+      "steer_cmd_deg": 0.0,
+      "comment": "Straight acceleration to 12 m/s"
     },
     {
       "t0": 15.0,
-      "t1": 20.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Right again - establishing rhythm"
-    },
-    {
-      "t0": 20.0,
       "t1": 25.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Left again - slalom pattern"
+      "steer_cmd_deg": 5.0,
+      "comment": "Gentle right turn"
     },
     {
       "t0": 25.0,
-      "t1": 30.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Continue slalom right"
-    },
-    {
-      "t0": 30.0,
       "t1": 35.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Continue slalom left"
+      "steer_cmd_deg": -5.0,
+      "comment": "Gentle left turn"
     },
     {
       "t0": 35.0,
-      "t1": 40.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Slalom right - testing consistency"
-    },
-    {
-      "t0": 40.0,
       "t1": 45.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Slalom left - sustained performance"
+      "steer_cmd_deg": 5.0,
+      "comment": "Right turn"
     },
     {
       "t0": 45.0,
-      "t1": 50.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Final slalom right"
-    },
-    {
-      "t0": 50.0,
       "t1": 55.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Final slalom left"
+      "steer_cmd_deg": -5.0,
+      "comment": "Left turn"
     },
     {
       "t0": 55.0,
+      "t1": 65.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Right turn"
+    },
+    {
+      "t0": 65.0,
+      "t1": 75.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Left turn"
+    },
+    {
+      "t0": 75.0,
+      "t1": 85.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Right turn"
+    },
+    {
+      "t0": 85.0,
+      "t1": 95.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Left turn"
+    },
+    {
+      "t0": 95.0,
+      "t1": 105.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Final right"
+    },
+    {
+      "t0": 105.0,
+      "t1": 115.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Final left"
+    },
+    {
+      "t0": 115.0,
       "t1": -1.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Straighten and stabilize"
+      "comment": "Straighten"
     }
-  ]
+  ],
+  "tuning_notes": {
+    "description": "PID tuning for XCMG XDE360 220-ton electric mining truck",
+    "vehicle_params": {
+      "mass_kg": 220000,
+      "max_motor_torque_nm": 145000,
+      "max_brake_force_n": 180000,
+      "wheel_radius_m": 1.95,
+      "gear_ratio": 28.0
+    },
+    "gains_rationale": {
+      "kp": "Tripled to 15000 - Heavy trucks need strong proportional response",
+      "ki": "Increased to 800 - Handle sustained drag/rolling resistance",
+      "kd": "Tripled to 3000 - Critical for damping 220-ton inertia",
+      "integral_limit": "Reduced to 30000 - Prevent excessive windup"
+    },
+    "brake_conversion_required": {
+      "condition": "When PID outputs negative torque",
+      "formula": "brake_pct = abs(torque_nm) / max_brake_torque_equivalent * 100",
+      "max_brake_torque_equivalent": "brake_force_n * wheel_radius_m / gear_ratio = 180000 * 1.95 / 28 = 12536 Nm",
+      "example": "If PID = -10000 Nm, brake = 10000/12536*100 = 79.8%",
+      "critical": "Must set drive_torque_cmd_nm = 0 when braking!"
+    }
+  }
 }

@@ -1,20 +1,21 @@
 {
   "meta": {
-    "name": "gentle_slalom_auto_mpc",
-    "version": 1,
-    "description": "Gentle slalom course - Fully autonomous MPC (learns everything)",
-    "control_mode": "auto_mpc"
+    "name": "gentle_slalom_auto_mpc_xcmg",
+    "version": 2,
+    "description": "Gentle slalom for XCMG XDE360 (220-ton mining truck) - Fully autonomous MPC",
+    "control_mode": "auto_mpc",
+    "vehicle": "XCMG XDE360"
   },
   "timing": {
     "dt_s": 0.01,
-    "duration_s": 600.0,
+    "duration_s": 120.0,
     "log_hz": 10.0,
     "real_time_mode": true
   },
   "auto_mpc_config": {
-    "target_velocity_mps": 8.0,
-    "aggressive_tuning": true,
-    "learning_rate": 0.003
+    "target_velocity_mps": 12.0,
+    "aggressive_tuning": false,
+    "learning_rate": 0.005
   },
   "defaults": {
     "system_enable": true,
@@ -26,75 +27,69 @@
   "segments": [
     {
       "t0": 0.0,
-      "t1": 5.0,
-      "steer_cmd_deg": 0.0,
-      "comment": "Discovery phase - learns mass and drag"
-    },
-    {
-      "t0": 5.0,
-      "t1": 10.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "First turn - auto-tunes gains"
-    },
-    {
-      "t0": 10.0,
       "t1": 15.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Opposite turn - validates symmetry"
+      "steer_cmd_deg": 0.0,
+      "comment": "Extended discovery phase - learns 220-ton mass and 9.5 kN rolling resistance"
     },
     {
       "t0": 15.0,
-      "t1": 20.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Confidence building - adapting limits"
-    },
-    {
-      "t0": 20.0,
       "t1": 25.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Convergence phase - model stabilizing"
+      "steer_cmd_deg": 3.0,
+      "comment": "Very gentle first turn - heavy trucks have limited steering authority"
     },
     {
       "t0": 25.0,
-      "t1": 30.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "High confidence - autonomous optimization"
-    },
-    {
-      "t0": 30.0,
       "t1": 35.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Slalom left - fully adapted"
+      "steer_cmd_deg": -3.0,
+      "comment": "Opposite gentle turn - validates symmetry and adapts drag"
     },
     {
       "t0": 35.0,
-      "t1": 40.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Peak performance - learned everything"
-    },
-    {
-      "t0": 40.0,
       "t1": 45.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Sustained excellence - no human tuning"
+      "steer_cmd_deg": 4.0,
+      "comment": "Slightly more aggressive - gains stabilizing"
     },
     {
       "t0": 45.0,
-      "t1": 50.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Final slalom right"
-    },
-    {
-      "t0": 50.0,
       "t1": 55.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Final slalom left"
+      "steer_cmd_deg": -4.0,
+      "comment": "Building confidence - learns 145 kNm torque limits"
     },
     {
       "t0": 55.0,
-      "t1": -1.0,
+      "t1": 65.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Approaching max comfortable steering for mining truck"
+    },
+    {
+      "t0": 65.0,
+      "t1": 75.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Convergence phase - model approaching reality"
+    },
+    {
+      "t0": 75.0,
+      "t1": 85.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "High confidence - adapted to heavy vehicle dynamics"
+    },
+    {
+      "t0": 85.0,
+      "t1": 95.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Sustained performance - 180 kN brake limits discovered"
+    },
+    {
+      "t0": 95.0,
+      "t1": 105.0,
+      "steer_cmd_deg": 4.0,
+      "comment": "Final validation - autonomous mastery of heavy vehicle"
+    },
+    {
+      "t0": 105.0,
+      "t1": 180,
       "steer_cmd_deg": 0.0,
-      "comment": "Perfect steady-state - autonomous mastery"
+      "comment": "Perfect steady-state at 12 m/s (~43 km/h) - no human tuning required"
     }
   ]
 }

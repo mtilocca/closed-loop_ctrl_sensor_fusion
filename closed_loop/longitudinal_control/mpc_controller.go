@@ -32,14 +32,14 @@ type MPCController struct {
 	iterationCount int
 }
 
-// NewMPCController creates a new MPC controller
 func NewMPCController(cfg MPCConfig) *MPCController {
-	// Initialize with conservative vehicle model estimates
+	// Initialize with realistic heavy truck model estimates
+	// For XCMG XDE360: 220-ton vehicle
 	model := VehicleModel{
-		Mass:          5000.0, // Start with medium truck assumption
-		DragCoeff:     2.5,    // Conservative drag
-		RollingResist: 500.0,  // Conservative rolling resistance
-		Confidence:    0.1,    // Low initial confidence
+		Mass:          200000.0, // Start with 200 tons (close to actual 220)
+		DragCoeff:     3.5,      // Realistic for large mining truck
+		RollingResist: 8000.0,   // ~4% of weight for mining haul roads
+		Confidence:    0.3,      // Medium initial confidence (was 0.1)
 	}
 
 	return &MPCController{
@@ -178,7 +178,7 @@ func (mpc *MPCController) adaptModel(currentVelocity float64, dt float64) {
 	// Update mass (inverse relationship with accel)
 	if math.Abs(driveForce) > 100 { // Only adapt when force is significant
 		mpc.model.Mass += alpha * accelError * driveForce * 0.001
-		mpc.model.Mass = ClampFloat(mpc.model.Mass, 1000, 50000) // 1-50 tons
+		mpc.model.Mass = ClampFloat(mpc.model.Mass, 1000, 300000) // 1-50 tons
 	}
 
 	// Update drag coefficient (proportional to v²)

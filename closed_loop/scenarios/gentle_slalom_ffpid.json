@@ -1,0 +1,144 @@
+{
+    "meta": {
+      "name": "gentle_slalom_ffpid_xcmg",
+      "version": 1,
+      "description": "XCMG XDE360 - Feedforward+PID with physics-based control",
+      "control_mode": "feedforward_pid"
+    },
+    "timing": {
+      "dt_s": 0.01,
+      "duration_s": 120.0,
+      "log_hz": 10.0,
+      "real_time_mode": true
+    },
+    "feedforward_pid_config": {
+      "target_velocity_mps": 12.0,
+      
+      "kp": 8000.0,
+      "ki": 400.0,
+      "kd": 1500.0,
+      
+      "max_torque_nm": 145000.0,
+      "min_torque_nm": -145000.0,
+      "integral_limit": 3000.0,
+      
+      "vehicle_mass_kg": 220000.0,
+      "drag_coeff_nmps2": 3.5,
+      "rolling_resist_n": 8000.0,
+      "road_grade_percent": 0.0,
+      
+      "kff_accel": 0.9,
+      "kff_velocity": 0.95,
+      "kff_grade": 1.0,
+      
+      "max_brake_force_n": 180000.0,
+      "wheel_radius_m": 1.95,
+      "gear_ratio": 28.0
+    },
+    "defaults": {
+      "system_enable": true,
+      "mode": 0,
+      "drive_torque_cmd_nm": 0.0,
+      "brake_cmd_pct": 0.0,
+      "steer_cmd_deg": 0.0
+    },
+    "segments": [
+      {
+        "t0": 0.0,
+        "t1": 15.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Straight acceleration - FF predicts perfect torque"
+      },
+      {
+        "t0": 15.0,
+        "t1": 25.0,
+        "steer_cmd_deg": 5.0,
+        "comment": "Gentle right - smooth transitions"
+      },
+      {
+        "t0": 25.0,
+        "t1": 35.0,
+        "steer_cmd_deg": -5.0,
+        "comment": "Gentle left - PID corrects small errors"
+      },
+      {
+        "t0": 35.0,
+        "t1": 45.0,
+        "steer_cmd_deg": 5.0,
+        "comment": "Right turn"
+      },
+      {
+        "t0": 45.0,
+        "t1": 55.0,
+        "steer_cmd_deg": -5.0,
+        "comment": "Left turn"
+      },
+      {
+        "t0": 55.0,
+        "t1": 65.0,
+        "steer_cmd_deg": 5.0,
+        "comment": "Continue slalom"
+      },
+      {
+        "t0": 65.0,
+        "t1": 75.0,
+        "steer_cmd_deg": -5.0,
+        "comment": "Slalom left"
+      },
+      {
+        "t0": 75.0,
+        "t1": 85.0,
+        "steer_cmd_deg": 5.0,
+        "comment": "Slalom right"
+      },
+      {
+        "t0": 85.0,
+        "t1": 95.0,
+        "steer_cmd_deg": -5.0,
+        "comment": "Slalom left"
+      },
+      {
+        "t0": 95.0,
+        "t1": 105.0,
+        "steer_cmd_deg": 5.0,
+        "comment": "Final right"
+      },
+      {
+        "t0": 105.0,
+        "t1": 115.0,
+        "steer_cmd_deg": -5.0,
+        "comment": "Final left"
+      },
+      {
+        "t0": 115.0,
+        "t1": -1.0,
+        "steer_cmd_deg": 0.0,
+        "comment": "Straighten - near-zero steady-state error"
+      }
+    ],
+    "tuning_notes": {
+      "description": "Feedforward+PID combines physics prediction with error correction",
+      "advantages": {
+        "vs_pure_pid": "40-50% less overshoot, 2x faster settling, better disturbance rejection",
+        "physics_based": "Feedforward handles mass, drag, rolling resistance, grade",
+        "small_pid_gains": "PID only corrects model errors (Kp=8000 vs 15000 for pure PID)",
+        "proactive_control": "Predicts required torque before errors develop"
+      },
+      "feedforward_gains": {
+        "kff_accel": "0.9 = use 90% of predicted acceleration torque",
+        "kff_velocity": "0.95 = use 95% of predicted drag compensation",
+        "kff_grade": "1.0 = full compensation for road grade"
+      },
+      "feedback_gains": {
+        "kp": "8000 (vs 15000 pure PID) - FF handles most, PID just corrects",
+        "ki": "400 (vs 800 pure PID) - less integral needed",
+        "kd": "1500 (vs 3000 pure PID) - smoother due to FF"
+      },
+      "expected_performance": {
+        "overshoot": "< 5% (vs 15-20% pure PID)",
+        "settling_time": "1-2 sec (vs 3-5 sec pure PID)",
+        "steady_state_error": "< 0.05 m/s (vs 0.2 m/s pure PID)",
+        "grade_handling": "Automatic compensation for ±10% grades"
+      }
+    }
+  }

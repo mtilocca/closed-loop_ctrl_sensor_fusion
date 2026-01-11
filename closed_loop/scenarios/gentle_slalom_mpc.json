@@ -1,33 +1,33 @@
 {
   "meta": {
-    "name": "gentle_slalom_mpc",
-    "version": 1,
-    "description": "Gentle slalom course - MPC with brake control",
+    "name": "gentle_slalom_mpc_xcmg",
+    "version": 2,
+    "description": "XCMG XDE360 (220-ton) - MPC with brake control and online adaptation",
     "control_mode": "velocity_mpc"
   },
   "timing": {
     "dt_s": 0.01,
-    "duration_s": 60.0,
+    "duration_s": 120.0,
     "log_hz": 10.0,
     "real_time_mode": true
   },
   "mpc_config": {
-    "target_velocity_mps": 8.0,
+    "target_velocity_mps": 12.0,
     "prediction_horizon": 10,
     "control_horizon": 3,
     "time_step": 0.01,
     
-    "weight_velocity": 150.0,
-    "weight_accel": 1.0,
-    "weight_jerk": 0.1,
+    "weight_velocity": 200.0,
+    "weight_accel": 1.5,
+    "weight_jerk": 0.2,
     
-    "max_torque": 30000.0,
-    "max_brake_force": 800.0,
-    "max_accel": 2.5,
-    "max_decel": 3.5,
+    "max_torque": 145000.0,
+    "max_brake_force": 180.0,
+    "max_accel": 1.0,
+    "max_decel": 2.0,
     
     "enable_adaptation": true,
-    "adaptation_rate": 0.03
+    "adaptation_rate": 0.05
   },
   "defaults": {
     "system_enable": true,
@@ -39,75 +39,110 @@
   "segments": [
     {
       "t0": 0.0,
-      "t1": 5.0,
-      "steer_cmd_deg": 0.0,
-      "comment": "Straight acceleration - learning vehicle dynamics"
-    },
-    {
-      "t0": 5.0,
-      "t1": 10.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Gentle right - MPC predicts trajectory"
-    },
-    {
-      "t0": 10.0,
       "t1": 15.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Gentle left - brake-to-accel transition"
+      "steer_cmd_deg": 0.0,
+      "comment": "Straight acceleration - model learns mass and drag"
     },
     {
       "t0": 15.0,
-      "t1": 20.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Right - model adaptation ongoing"
-    },
-    {
-      "t0": 20.0,
       "t1": 25.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Left - optimized control active"
+      "steer_cmd_deg": 5.0,
+      "comment": "Gentle right - predictive velocity adjustment"
     },
     {
       "t0": 25.0,
-      "t1": 30.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Continue slalom - predictive advantage"
-    },
-    {
-      "t0": 30.0,
       "t1": 35.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Slalom left - smooth brake usage"
+      "steer_cmd_deg": -5.0,
+      "comment": "Gentle left - brake-to-accel transition"
     },
     {
       "t0": 35.0,
-      "t1": 40.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Slalom right - high confidence now"
-    },
-    {
-      "t0": 40.0,
       "t1": 45.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Slalom left - demonstrate learned model"
+      "steer_cmd_deg": 5.0,
+      "comment": "Right - model confidence increasing"
     },
     {
       "t0": 45.0,
-      "t1": 50.0,
-      "steer_cmd_deg": 8.0,
-      "comment": "Final slalom right"
-    },
-    {
-      "t0": 50.0,
       "t1": 55.0,
-      "steer_cmd_deg": -8.0,
-      "comment": "Final slalom left"
+      "steer_cmd_deg": -5.0,
+      "comment": "Left - optimized control active"
     },
     {
       "t0": 55.0,
+      "t1": 65.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Continue slalom - predictive advantage"
+    },
+    {
+      "t0": 65.0,
+      "t1": 75.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Slalom left - smooth transitions"
+    },
+    {
+      "t0": 75.0,
+      "t1": 85.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Slalom right - high model confidence"
+    },
+    {
+      "t0": 85.0,
+      "t1": 95.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Slalom left - demonstrate learned dynamics"
+    },
+    {
+      "t0": 95.0,
+      "t1": 105.0,
+      "steer_cmd_deg": 5.0,
+      "comment": "Final right - optimal control"
+    },
+    {
+      "t0": 105.0,
+      "t1": 115.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Final left"
+    },
+    {
+      "t0": 115.0,
       "t1": -1.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Straighten - optimal steady-state"
+      "comment": "Straighten - steady-state perfection"
     }
-  ]
+  ],
+  "tuning_notes": {
+    "description": "MPC tuning for XCMG XDE360 220-ton electric mining truck",
+    "vehicle_params": {
+      "mass_kg": 220000,
+      "max_motor_torque_nm": 145000,
+      "max_brake_force_kn": 180,
+      "wheel_radius_m": 1.95,
+      "gear_ratio": 28.0,
+      "expected_drag_coeff": 3.5,
+      "expected_rolling_resist_n": 8000
+    },
+    "mpc_advantages": {
+      "predictive_braking": "MPC predicts future trajectory - applies brakes earlier",
+      "constraint_handling": "Explicit torque/accel limits prevent saturation",
+      "online_adaptation": "Model learns mass, drag, rolling resistance in real-time",
+      "optimal_transitions": "Minimizes jerk during accel-to-brake switches"
+    },
+    "tuning_rationale": {
+      "max_torque": "145000 Nm - matches vehicle max (was 30000 - WAY too low!)",
+      "max_brake_force": "180 kN - actual XCMG brake capacity",
+      "max_accel": "1.0 m/s² - conservative for 220-ton truck",
+      "max_decel": "2.0 m/s² - allows moderate braking",
+      "weight_velocity": "200.0 - strong tracking (vs 150 before)",
+      "weight_accel": "1.5 - balance smoothness (vs 1.0)",
+      "weight_jerk": "0.2 - slight jerk penalty for comfort",
+      "adaptation_rate": "0.05 - faster learning (was 0.03)",
+      "prediction_horizon": "10 steps = 0.1s lookahead @ 100Hz"
+    },
+    "expected_behavior": {
+      "0-15s": "Accelerate to 12 m/s, model learns true mass ~220k kg",
+      "15-115s": "Track setpoint through slalom, confidence → 1.0",
+      "brake_usage": "Proactive deceleration before sharp turns",
+      "advantage_vs_pid": "Less overshoot, smoother control, better anticipation"
+    }
+  }
 }

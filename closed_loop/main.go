@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"dds-fusion-core/utils"
+	"closed_loop_ctrl_sensor_fusion/utils"
 )
 
 func main() {

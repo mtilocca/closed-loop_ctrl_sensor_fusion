@@ -1,4 +1,4 @@
-module dds-fusion-core
+module closed_loop_ctrl_sensor_fusion
 
 go 1.23.0
 

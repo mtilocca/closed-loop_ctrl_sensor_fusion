@@ -1,4 +1,4 @@
-package main
+package control
 
 import (
 	"math"
@@ -101,7 +101,7 @@ func (mpc *MPCController) solveOptimization(v0 float64, error float64, dt float6
 	}
 
 	// Clamp to physical limits
-	requiredAccel = clampFloat(requiredAccel, -mpc.cfg.MaxDecel, mpc.cfg.MaxAccel)
+	requiredAccel = ClampFloat(requiredAccel, -mpc.cfg.MaxDecel, mpc.cfg.MaxAccel)
 
 	// Convert acceleration to control commands
 	return mpc.accelToControl(requiredAccel, v0)
@@ -127,7 +127,7 @@ func (mpc *MPCController) accelToControl(accel float64, velocity float64) Contro
 		// Simplified: torque proportional to force
 		torque := requiredForce * 0.3 // Rough conversion factor
 
-		output.TorqueNm = clampFloat(torque, 0, mpc.cfg.MaxTorque)
+		output.TorqueNm = ClampFloat(torque, 0, mpc.cfg.MaxTorque)
 		output.BrakePct = 0
 		output.IsAccel = true
 		output.IsBrake = false
@@ -141,7 +141,7 @@ func (mpc *MPCController) accelToControl(accel float64, velocity float64) Contro
 		brakePct := (brakingForce / maxBrakeForceN) * 100.0
 
 		output.TorqueNm = 0
-		output.BrakePct = clampFloat(brakePct, 0, 100)
+		output.BrakePct = ClampFloat(brakePct, 0, 100)
 		output.IsAccel = false
 		output.IsBrake = true
 	}
@@ -178,18 +178,18 @@ func (mpc *MPCController) adaptModel(currentVelocity float64, dt float64) {
 	// Update mass (inverse relationship with accel)
 	if math.Abs(driveForce) > 100 { // Only adapt when force is significant
 		mpc.model.Mass += alpha * accelError * driveForce * 0.001
-		mpc.model.Mass = clampFloat(mpc.model.Mass, 1000, 50000) // 1-50 tons
+		mpc.model.Mass = ClampFloat(mpc.model.Mass, 1000, 50000) // 1-50 tons
 	}
 
 	// Update drag coefficient (proportional to v²)
 	if v_prev > 1.0 { // Only adapt at reasonable speeds
 		mpc.model.DragCoeff -= alpha * accelError * v_prev * v_prev * 0.01
-		mpc.model.DragCoeff = clampFloat(mpc.model.DragCoeff, 0.5, 10.0)
+		mpc.model.DragCoeff = ClampFloat(mpc.model.DragCoeff, 0.5, 10.0)
 	}
 
 	// Increase confidence gradually
 	mpc.model.Confidence += 0.001
-	mpc.model.Confidence = clampFloat(mpc.model.Confidence, 0, 1)
+	mpc.model.Confidence = ClampFloat(mpc.model.Confidence, 0, 1)
 }
 
 // Reset clears controller state

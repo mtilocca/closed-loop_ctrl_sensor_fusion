@@ -1,6 +1,7 @@
 package main
 
 import (
+	control "closed_loop_ctrl_sensor_fusion/closed_loop/longitudinal_control"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,14 +9,14 @@ import (
 
 // Scenario defines a complete test scenario
 type Scenario struct {
-	Meta              ScenarioMeta       `json:"meta"`
-	Timing            ScenarioTiming     `json:"timing"`
-	Defaults          ActuatorCmd        `json:"defaults"`
-	Segments          []ScenarioSegment  `json:"segments"`
-	PIDConfig         *PIDConfig         `json:"pid_config,omitempty"`          // Optional PID config
-	AdaptivePIDConfig *AdaptivePIDConfig `json:"adaptive_pid_config,omitempty"` // Optional Adaptive PID config
-	MPCConfig         *MPCConfig         `json:"mpc_config,omitempty"`          // Optional MPC config
-	AutoMPCConfig     *AutoMPCConfig     `json:"auto_mpc_config,omitempty"`     // Optional Auto-MPC config
+	Meta              ScenarioMeta               `json:"meta"`
+	Timing            ScenarioTiming             `json:"timing"`
+	Defaults          ActuatorCmd                `json:"defaults"`
+	Segments          []ScenarioSegment          `json:"segments"`
+	PIDConfig         *control.PIDConfig         `json:"pid_config,omitempty"`          // Optional PID config
+	AdaptivePIDConfig *control.AdaptivePIDConfig `json:"adaptive_pid_config,omitempty"` // Optional Adaptive PID config
+	MPCConfig         *control.MPCConfig         `json:"mpc_config,omitempty"`          // Optional MPC config
+	AutoMPCConfig     *control.AutoMPCConfig     `json:"auto_mpc_config,omitempty"`     // Optional Auto-MPC config
 }
 
 // ScenarioMeta contains scenario metadata

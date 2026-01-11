@@ -1,4 +1,4 @@
-package main
+package control
 
 import (
 	"math"
@@ -64,8 +64,8 @@ type AutoMPCController struct {
 	prevError       float64
 
 	// Performance metrics (for auto-tuning)
-	settlingDetected bool
-	responseSpeed    float64 // rad/s (vehicle bandwidth estimate)
+	//settlingDetected bool
+	//responseSpeed    float64 // rad/s (vehicle bandwidth estimate)
 
 	iterationCount int
 }
@@ -175,7 +175,7 @@ func (amc *AutoMPCController) adaptVehicleModel(velocity float64, dt float64) {
 	if math.Abs(netControlForce) > 500 {
 		massUpdate := alpha * accelError * netControlForce * 0.01
 		amc.estimatedMass += massUpdate
-		amc.estimatedMass = clampFloat(amc.estimatedMass, 50000, 400000) // 50-400 tons
+		amc.estimatedMass = ClampFloat(amc.estimatedMass, 50000, 400000) // 50-400 tons
 		amc.massConfidence = math.Min(0.99, amc.massConfidence+0.002)
 	}
 
@@ -183,7 +183,7 @@ func (amc *AutoMPCController) adaptVehicleModel(velocity float64, dt float64) {
 	if math.Abs(vPrev) > 2.0 {
 		dragUpdate := -alpha * accelError * vPrev * math.Abs(vPrev) * 0.05
 		amc.estimatedDrag += dragUpdate
-		amc.estimatedDrag = clampFloat(amc.estimatedDrag, 0.5, 25.0) // Higher max for mining trucks
+		amc.estimatedDrag = ClampFloat(amc.estimatedDrag, 0.5, 25.0) // Higher max for mining trucks
 		amc.dragConfidence = math.Min(0.99, amc.dragConfidence+0.001)
 	}
 
@@ -195,7 +195,7 @@ func (amc *AutoMPCController) adaptVehicleModel(velocity float64, dt float64) {
 		}
 		rollingUpdate := -alpha * accelError * sign * 200.0
 		amc.estimatedRolling += rollingUpdate
-		amc.estimatedRolling = clampFloat(amc.estimatedRolling, 100, 20000) // Up to 20 kN for heavy trucks
+		amc.estimatedRolling = ClampFloat(amc.estimatedRolling, 100, 20000) // Up to 20 kN for heavy trucks
 	}
 }
 
@@ -249,9 +249,9 @@ func (amc *AutoMPCController) autoTuneGains(velocity float64, dt float64) {
 	amc.adaptiveKd += (targetKd - amc.adaptiveKd) * 0.01
 
 	// Clamp to reasonable ranges for heavy vehicles
-	amc.adaptiveKp = clampFloat(amc.adaptiveKp, 10, 50000) // Lower max to prevent overshoot
-	amc.adaptiveKi = clampFloat(amc.adaptiveKi, 1, 10000)  // Lower max
-	amc.adaptiveKd = clampFloat(amc.adaptiveKd, 1, 20000)  // Lower max
+	amc.adaptiveKp = ClampFloat(amc.adaptiveKp, 10, 50000) // Lower max to prevent overshoot
+	amc.adaptiveKi = ClampFloat(amc.adaptiveKi, 1, 10000)  // Lower max
+	amc.adaptiveKd = ClampFloat(amc.adaptiveKd, 1, 20000)  // Lower max
 }
 
 // computeAdaptiveControl calculates control output
@@ -265,7 +265,7 @@ func (amc *AutoMPCController) computeAdaptiveControl(velocity float64, dt float6
 	amc.errorIntegral += error * dt
 	// Anti-windup: limit integral based on max torque
 	maxIntegral := amc.estimatedMaxTorque / (amc.adaptiveKi + 0.01)
-	amc.errorIntegral = clampFloat(amc.errorIntegral, -maxIntegral, maxIntegral)
+	amc.errorIntegral = ClampFloat(amc.errorIntegral, -maxIntegral, maxIntegral)
 	iTerm := amc.adaptiveKi * amc.errorIntegral
 
 	dTerm := 0.0
@@ -307,7 +307,7 @@ func (amc *AutoMPCController) forceToActuators(force float64) ControlOutput {
 	if force > 0 {
 		// Acceleration - use motor torque
 		torque := amc.forceToTorque(force)
-		output.TorqueNm = clampFloat(torque, 0, amc.estimatedMaxTorque)
+		output.TorqueNm = ClampFloat(torque, 0, amc.estimatedMaxTorque)
 		output.BrakePct = 0
 		output.IsAccel = true
 		output.IsBrake = false
@@ -316,7 +316,7 @@ func (amc *AutoMPCController) forceToActuators(force float64) ControlOutput {
 		brakeForce := -force // Positive braking force
 		brakePct := amc.forceToBrake(brakeForce)
 		output.TorqueNm = 0
-		output.BrakePct = clampFloat(brakePct, 0, 100)
+		output.BrakePct = ClampFloat(brakePct, 0, 100)
 		output.IsAccel = false
 		output.IsBrake = true
 	}

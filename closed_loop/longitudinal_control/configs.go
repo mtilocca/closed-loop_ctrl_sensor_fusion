@@ -1,4 +1,4 @@
-package main
+package control
 
 // PIDConfig holds PID controller parameters
 type PIDConfig struct {

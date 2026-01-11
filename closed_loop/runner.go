@@ -6,9 +6,10 @@ import (
 	"os"
 	"time"
 
-	"go.einride.tech/can"
+	control "closed_loop_ctrl_sensor_fusion/closed_loop/longitudinal_control"
+	"closed_loop_ctrl_sensor_fusion/utils"
 
-	"dds-fusion-core/utils"
+	"go.einride.tech/can"
 )
 
 type RunnerConfig struct {
@@ -23,14 +24,14 @@ type Runner struct {
 	log    *utils.Logger
 	cmap   *utils.CANMap
 	scen   Scenario
-	writer CANWriter
-	reader CANReader
+	writer utils.CANWriter
+	reader utils.CANReader
 	fd     *utils.FrameDef
 
 	// Controllers (only one active at a time)
-	pid     *PIDController
-	mpc     *MPCController
-	autoMPC *AutoMPCController // Added Auto-MPC support
+	pid     *control.PIDController
+	mpc     *control.MPCController
+	autoMPC *control.AutoMPCController // Added Auto-MPC support
 
 	// CSV logging
 	csvFile *os.File
@@ -57,13 +58,13 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 	}
 
 	// Create CAN writer (TX)
-	writer, err := NewSocketCANWriter(ctx, cfg.Interface)
+	writer, err := utils.NewSocketCANWriter(ctx, cfg.Interface)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create CAN reader (RX) for sensor feedback
-	reader, err := NewSocketCANReader(ctx, cfg.Interface)
+	reader, err := utils.NewSocketCANReader(ctx, cfg.Interface)
 	if err != nil {
 		writer.Close()
 		return nil, err
@@ -89,7 +90,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		if scen.PIDConfig == nil {
 			return nil, fmt.Errorf("velocity_pid mode requires pid_config in scenario")
 		}
-		r.pid = NewPIDController(*scen.PIDConfig)
+		r.pid = control.NewPIDController(*scen.PIDConfig)
 		log.Info("PID controller initialized: target=%.2f m/s, Kp=%.1f, Ki=%.1f, Kd=%.1f",
 			scen.PIDConfig.TargetVelocityMPS,
 			scen.PIDConfig.Kp,
@@ -117,7 +118,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		if scen.MPCConfig == nil {
 			return nil, fmt.Errorf("velocity_mpc mode requires mpc_config in scenario")
 		}
-		r.mpc = NewMPCController(*scen.MPCConfig)
+		r.mpc = control.NewMPCController(*scen.MPCConfig)
 		log.Info("MPC controller initialized: target=%.2f m/s, horizon=%d, adaptation=%v",
 			scen.MPCConfig.TargetVelocityMPS,
 			scen.MPCConfig.PredictionHorizon,
@@ -144,7 +145,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		if scen.AutoMPCConfig == nil {
 			return nil, fmt.Errorf("auto_mpc mode requires auto_mpc_config in scenario")
 		}
-		r.autoMPC = NewAutoMPCController(*scen.AutoMPCConfig)
+		r.autoMPC = control.NewAutoMPCController(*scen.AutoMPCConfig)
 		log.Info("Auto-MPC initialized: target=%.2f m/s, autonomous learning enabled",
 			scen.AutoMPCConfig.TargetVelocityMPS)
 
@@ -266,7 +267,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 			// Encode and transmit CAN frame
 			values := map[string]float64{
-				"system_enable":       boolToFloat(cmd.SystemEnable),
+				"system_enable":       control.BoolToFloat(cmd.SystemEnable),
 				"mode":                cmd.Mode,
 				"steer_cmd_deg":       cmd.SteerDeg,
 				"drive_torque_cmd_nm": cmd.TorqueNm,
@@ -366,7 +367,7 @@ func (r *Runner) applyMPC(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 		r.log.Debug("MPC: v=%.2f err=%.3f torque=%.1f brake=%.1f mass=%.0f conf=%.2f %s",
 			velocity, error, output.TorqueNm, output.BrakePct,
 			diag.EstimatedMass, diag.ModelConfidence,
-			getControlModeStr(output))
+			control.GetControlModeStr(output))
 	}
 
 	// Write to CSV every cycle (unified format)
@@ -407,7 +408,7 @@ func (r *Runner) applyAutoMPC(cmd *ActuatorCmd, velocity float64, dt float64, t 
 		r.log.Debug("AUTO: v=%.2f err=%.3f torque=%.0f brake=%.1f mass=%.0f conf=%.2f Kp=%.1f %s",
 			velocity, error, output.TorqueNm, output.BrakePct,
 			diag.EstimatedMass, diag.MassConfidence, diag.AdaptiveKp,
-			getControlModeStr(output))
+			control.GetControlModeStr(output))
 	}
 
 	if r.csvFile != nil {

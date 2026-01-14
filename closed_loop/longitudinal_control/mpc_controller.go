@@ -177,7 +177,8 @@ func (mpc *MPCController) adaptModel(currentVelocity float64, dt float64) {
 
 	// Update mass (inverse relationship with accel)
 	if math.Abs(driveForce) > 100 { // Only adapt when force is significant
-		mpc.model.Mass += alpha * accelError * driveForce * 0.001
+		massCorrection := -alpha * accelError * math.Abs(driveForce) * 0.01
+		mpc.model.Mass += massCorrection
 		mpc.model.Mass = ClampFloat(mpc.model.Mass, 1000, 300000) // 1-50 tons
 	}
 

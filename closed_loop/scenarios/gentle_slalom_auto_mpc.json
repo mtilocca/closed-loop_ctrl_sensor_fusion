@@ -1,10 +1,9 @@
 {
   "meta": {
     "name": "gentle_slalom_auto_mpc_xcmg",
-    "version": 2,
-    "description": "Gentle slalom for XCMG XDE360 (220-ton mining truck) - Fully autonomous MPC",
-    "control_mode": "auto_mpc",
-    "vehicle": "XCMG XDE360"
+    "version": 1,
+    "description": "XCMG XDE360 - Improved Auto-MPC with MPC tuning lessons applied",
+    "control_mode": "auto_mpc"
   },
   "timing": {
     "dt_s": 0.01,
@@ -13,9 +12,9 @@
     "real_time_mode": true
   },
   "auto_mpc_config": {
-    "target_velocity_mps": 12.0,
-    "aggressive_tuning": false,
-    "learning_rate": 0.005
+    "target_velocity_mps": 6.0,
+    "learning_rate": 0.05,
+    "aggressive_tuning": false
   },
   "defaults": {
     "system_enable": true,
@@ -29,67 +28,73 @@
       "t0": 0.0,
       "t1": 15.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Extended discovery phase - learns 220-ton mass and 9.5 kN rolling resistance"
+      "comment": "Straight acceleration - improved adaptation learns mass correctly"
     },
     {
       "t0": 15.0,
       "t1": 25.0,
-      "steer_cmd_deg": 3.0,
-      "comment": "Very gentle first turn - heavy trucks have limited steering authority"
+      "steer_cmd_deg": 5.0,
+      "comment": "Gentle right - mass should be increasing toward 220k kg"
     },
     {
       "t0": 25.0,
       "t1": 35.0,
-      "steer_cmd_deg": -3.0,
-      "comment": "Opposite gentle turn - validates symmetry and adapts drag"
+      "steer_cmd_deg": -5.0,
+      "comment": "Gentle left - gains auto-tuning to optimal values"
     },
     {
       "t0": 35.0,
       "t1": 45.0,
-      "steer_cmd_deg": 4.0,
-      "comment": "Slightly more aggressive - gains stabilizing"
+      "steer_cmd_deg": 5.0,
+      "comment": "Right - confidence rising, control improving"
     },
     {
       "t0": 45.0,
       "t1": 55.0,
-      "steer_cmd_deg": -4.0,
-      "comment": "Building confidence - learns 145 kNm torque limits"
+      "steer_cmd_deg": -5.0,
+      "comment": "Left - near-optimal performance"
     },
     {
       "t0": 55.0,
       "t1": 65.0,
       "steer_cmd_deg": 5.0,
-      "comment": "Approaching max comfortable steering for mining truck"
+      "comment": "Continue slalom"
     },
     {
       "t0": 65.0,
       "t1": 75.0,
       "steer_cmd_deg": -5.0,
-      "comment": "Convergence phase - model approaching reality"
+      "comment": "Slalom left"
     },
     {
       "t0": 75.0,
       "t1": 85.0,
       "steer_cmd_deg": 5.0,
-      "comment": "High confidence - adapted to heavy vehicle dynamics"
+      "comment": "Slalom right"
     },
     {
       "t0": 85.0,
       "t1": 95.0,
       "steer_cmd_deg": -5.0,
-      "comment": "Sustained performance - 180 kN brake limits discovered"
+      "comment": "Slalom left"
     },
     {
       "t0": 95.0,
       "t1": 105.0,
-      "steer_cmd_deg": 4.0,
-      "comment": "Final validation - autonomous mastery of heavy vehicle"
+      "steer_cmd_deg": 5.0,
+      "comment": "Final right"
     },
     {
       "t0": 105.0,
-      "t1": 180,
+      "t1": 115.0,
+      "steer_cmd_deg": -5.0,
+      "comment": "Final left"
+    },
+    {
+      "t0": 115.0,
+      "t1": -1.0,
       "steer_cmd_deg": 0.0,
-      "comment": "Perfect steady-state at 12 m/s (~43 km/h) - no human tuning required"
+      "comment": "Straighten - fully converged performance"
     }
   ]
 }

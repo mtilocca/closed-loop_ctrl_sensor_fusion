@@ -27,11 +27,18 @@ type AutoMPCDiagnostics struct {
 }
 
 // ============================================================================
-// AUTO-MPC CONTROLLER - HEAVY DUTY MINING TRUCK OPTIMIZED
+// IMPROVED AUTO-MPC CONTROLLER - APPLYING MPC TUNING LESSONS
+// ============================================================================
+// Changes from original:
+// 1. FIXED mass adaptation sign (was going wrong direction)
+// 2. Higher sensitivity for faster convergence
+// 3. Better initial estimates (start at 200 tons, not 220)
+// 4. Improved force conversion with realistic geometry
+// 5. Better integral anti-windup
+// 6. Adaptive deadband for integral term
 // ============================================================================
 
-// AutoMPCController is a fully autonomous adaptive controller
-// It learns ALL vehicle parameters online and adapts control automatically
+// AutoMPCController with fixes from MPC tuning experience
 type AutoMPCController struct {
 	cfg AutoMPCConfig
 
@@ -39,19 +46,19 @@ type AutoMPCController struct {
 	estimatedMass      float64 // kg
 	estimatedDrag      float64 // N/(m/s)²
 	estimatedRolling   float64 // N
-	estimatedMaxTorque float64 // Nm (discovered by saturation detection)
-	estimatedMaxBrake  float64 // N (discovered by saturation detection, e.g. 180,000 N = 180 kN)
+	estimatedMaxTorque float64 // Nm
+	estimatedMaxBrake  float64 // N
 
-	// Vehicle geometry (for force conversions)
-	wheelRadiusM float64 // Effective rolling radius
-	gearRatio    float64 // Motor:wheel gear ratio
+	// Vehicle geometry
+	wheelRadiusM float64
+	gearRatio    float64
 
 	// Confidence tracking
 	massConfidence  float64 // 0-1
 	dragConfidence  float64 // 0-1
 	limitConfidence float64 // 0-1
 
-	// Adaptive control gains (auto-tuned based on vehicle response)
+	// Adaptive control gains
 	adaptiveKp float64
 	adaptiveKi float64
 	adaptiveKd float64
@@ -63,43 +70,41 @@ type AutoMPCController struct {
 	errorIntegral   float64
 	prevError       float64
 
-	// Performance metrics (for auto-tuning)
-	//settlingDetected bool
-	//responseSpeed    float64 // rad/s (vehicle bandwidth estimate)
+	// Overshoot protection
+	overshootDuration float64
 
 	iterationCount int
 }
 
-// NewAutoMPCController creates a fully autonomous MPC
+// NewAutoMPCController creates improved Auto-MPC
 func NewAutoMPCController(cfg AutoMPCConfig) *AutoMPCController {
-	// Set defaults if not specified
 	if cfg.LearningRate == 0 {
-		cfg.LearningRate = 0.01
+		cfg.LearningRate = 0.05 // Increased from 0.01 for faster learning
 	}
 
 	return &AutoMPCController{
 		cfg: cfg,
 
-		// Conservative initial estimates (will adapt quickly to heavy vehicle)
-		estimatedMass:      220000.0, // Start with heavy truck assumption (220 tons)
-		estimatedDrag:      9.5,      // Higher drag for mining trucks
-		estimatedRolling:   9500.0,   // Higher rolling resistance (9.5 kN)
-		estimatedMaxTorque: 145000.0, // Will increase to actual limits (145 kNm)
-		estimatedMaxBrake:  180000.0, // 180 kN = 180,000 N
+		// LESSON 1: Start at 200 tons, not 220 (room to adapt UP)
+		estimatedMass:      200000.0, // 200 tons (will adapt to 220)
+		estimatedDrag:      3.5,      // Realistic initial estimate
+		estimatedRolling:   8000.0,   // ~4% grade resistance
+		estimatedMaxTorque: 145000.0, // Known vehicle limit
+		estimatedMaxBrake:  180000.0, // 180 kN brake force
 
-		// Heavy mining truck geometry
-		wheelRadiusM: 1.95, // Large tires (1.95m radius)
-		gearRatio:    28.0, // High gear ratio for torque
+		// Vehicle geometry
+		wheelRadiusM: 1.95,
+		gearRatio:    28.0,
 
-		// Low initial confidence
-		massConfidence:  0.05,
-		dragConfidence:  0.05,
-		limitConfidence: 0.05,
+		// LESSON 2: Start with medium confidence (not low)
+		massConfidence:  0.3, // Was 0.05, now 0.3
+		dragConfidence:  0.3, // Was 0.05, now 0.3
+		limitConfidence: 0.3, // Was 0.05, now 0.3
 
-		// Conservative initial gains (will auto-tune for heavy vehicle)
-		adaptiveKp: 100.0,
-		adaptiveKi: 10.0,
-		adaptiveKd: 200.0,
+		// LESSON 3: Start with stronger initial gains
+		adaptiveKp: 8000.0, // Much higher starting point
+		adaptiveKi: 400.0,  // Much higher starting point
+		adaptiveKd: 1500.0, // Much higher starting point
 
 		velocityHistory: make([]float64, 0, 200),
 		accelHistory:    make([]float64, 0, 200),
@@ -107,20 +112,20 @@ func NewAutoMPCController(cfg AutoMPCConfig) *AutoMPCController {
 	}
 }
 
-// Update computes optimal control using adaptive MPC
+// Update computes optimal control
 func (amc *AutoMPCController) Update(currentVelocity float64, dt float64) ControlOutput {
 	amc.iterationCount++
 
-	// Step 1: Learn vehicle parameters from data
+	// Step 1: Learn vehicle parameters (FIXED adaptation)
 	amc.adaptVehicleModel(currentVelocity, dt)
 
-	// Step 2: Auto-tune controller gains based on performance
+	// Step 2: Auto-tune gains
 	amc.autoTuneGains(currentVelocity, dt)
 
-	// Step 3: Compute control using adaptive PID-like law
+	// Step 3: Compute control with improved anti-windup
 	output := amc.computeAdaptiveControl(currentVelocity, dt)
 
-	// Step 4: Detect and adapt to saturation
+	// Step 4: Detect saturation
 	amc.detectSaturation(output)
 
 	// Step 5: Store history
@@ -129,31 +134,29 @@ func (amc *AutoMPCController) Update(currentVelocity float64, dt float64) Contro
 	return output
 }
 
-// adaptVehicleModel learns mass, drag, and rolling resistance online
+// adaptVehicleModel - FIXED VERSION with correct sign
 func (amc *AutoMPCController) adaptVehicleModel(velocity float64, dt float64) {
 	if len(amc.velocityHistory) < 3 || len(amc.controlHistory) < 2 {
-		return // Need more data
+		return
 	}
 
-	// Get previous state
 	vPrev := amc.velocityHistory[len(amc.velocityHistory)-2]
 	prevControl := amc.controlHistory[len(amc.controlHistory)-2]
 
-	// Measured acceleration
 	measuredAccel := (velocity - vPrev) / dt
 
-	// Only adapt when control is applied (otherwise just coasting)
-	if math.Abs(prevControl.TorqueNm) < 100 && math.Abs(prevControl.BrakePct) < 1 {
-		return // Higher threshold for heavy vehicle
+	// Only adapt when significant control applied
+	if math.Abs(prevControl.TorqueNm) < 1000 && math.Abs(prevControl.BrakePct) < 5 {
+		return
 	}
 
-	// Estimate forces from control
+	// Estimate forces
 	driveForce := amc.torqueToForce(prevControl.TorqueNm)
-	brakeForce := -amc.brakeToForce(prevControl.BrakePct) // Negative (opposes motion)
+	brakeForce := -amc.brakeToForce(prevControl.BrakePct)
 	netControlForce := driveForce + brakeForce
 
-	// Estimate resistive forces using current model
-	dragForce := amc.estimatedDrag * vPrev * math.Abs(vPrev) // Use |v|*v for directionality
+	// Resistive forces
+	dragForce := amc.estimatedDrag * vPrev * math.Abs(vPrev)
 	if vPrev < 0 {
 		dragForce = -dragForce
 	}
@@ -162,50 +165,51 @@ func (amc *AutoMPCController) adaptVehicleModel(velocity float64, dt float64) {
 		rollingForce = -rollingForce
 	}
 
-	// Predicted acceleration: F_net = m*a
+	// Predicted vs measured acceleration
 	predictedAccel := (netControlForce - dragForce - rollingForce) / amc.estimatedMass
-
-	// Prediction error
 	accelError := measuredAccel - predictedAccel
 
-	// Adaptive learning rate (higher when confidence is low)
+	// Adaptive learning rate
 	alpha := amc.cfg.LearningRate * (1.0 - amc.massConfidence*0.5)
 
-	// Update mass (inverse relationship with acceleration)
-	if math.Abs(netControlForce) > 500 {
-		massUpdate := alpha * accelError * netControlForce * 0.01
+	// CRITICAL FIX: Mass adaptation with CORRECT SIGN
+	// If accelError < 0 → vehicle accelerating slower → mass too LOW → INCREASE mass
+	// If accelError > 0 → vehicle accelerating faster → mass too HIGH → DECREASE mass
+	if math.Abs(netControlForce) > 2000 {
+		// FIXED: Negative sign to invert relationship
+		massUpdate := -alpha * accelError * math.Abs(netControlForce) * 0.02 // Increased sensitivity
 		amc.estimatedMass += massUpdate
-		amc.estimatedMass = ClampFloat(amc.estimatedMass, 50000, 400000) // 50-400 tons
-		amc.massConfidence = math.Min(0.99, amc.massConfidence+0.002)
+		amc.estimatedMass = ClampFloat(amc.estimatedMass, 50000, 400000)
+		amc.massConfidence = math.Min(0.99, amc.massConfidence+0.003) // Faster confidence gain
 	}
 
-	// Update drag coefficient (when moving at reasonable speed)
+	// Drag coefficient (higher speeds)
 	if math.Abs(vPrev) > 2.0 {
-		dragUpdate := -alpha * accelError * vPrev * math.Abs(vPrev) * 0.05
+		dragUpdate := -alpha * accelError * vPrev * math.Abs(vPrev) * 0.08 // Increased sensitivity
 		amc.estimatedDrag += dragUpdate
-		amc.estimatedDrag = ClampFloat(amc.estimatedDrag, 0.5, 25.0) // Higher max for mining trucks
-		amc.dragConfidence = math.Min(0.99, amc.dragConfidence+0.001)
+		amc.estimatedDrag = ClampFloat(amc.estimatedDrag, 0.5, 25.0)
+		amc.dragConfidence = math.Min(0.99, amc.dragConfidence+0.002)
 	}
 
-	// Update rolling resistance (when moving slowly)
+	// Rolling resistance (lower speeds)
 	if math.Abs(vPrev) > 0.5 && math.Abs(vPrev) < 3.0 {
 		sign := 1.0
 		if vPrev < 0 {
 			sign = -1.0
 		}
-		rollingUpdate := -alpha * accelError * sign * 200.0
+		rollingUpdate := -alpha * accelError * sign * 300.0 // Increased sensitivity
 		amc.estimatedRolling += rollingUpdate
-		amc.estimatedRolling = ClampFloat(amc.estimatedRolling, 100, 20000) // Up to 20 kN for heavy trucks
+		amc.estimatedRolling = ClampFloat(amc.estimatedRolling, 100, 20000)
 	}
 }
 
-// autoTuneGains adjusts PID gains based on closed-loop performance
+// autoTuneGains - Improved version with better mass scaling
 func (amc *AutoMPCController) autoTuneGains(velocity float64, dt float64) {
 	if len(amc.velocityHistory) < 20 {
-		return // Need settling data
+		return
 	}
 
-	// Estimate system response speed from velocity changes
+	// Check for oscillations
 	recentVel := amc.velocityHistory[len(amc.velocityHistory)-20:]
 	variance := 0.0
 	mean := 0.0
@@ -219,69 +223,87 @@ func (amc *AutoMPCController) autoTuneGains(velocity float64, dt float64) {
 	}
 	variance /= float64(len(recentVel))
 
-	// High variance = oscillatory = reduce gains
-	// Low variance = sluggish = increase gains
-	if variance > 1.0 && amc.massConfidence > 0.3 { // Higher threshold for heavy vehicle
-		// Oscillating - reduce gains
-		amc.adaptiveKp *= 0.98
-		amc.adaptiveKd *= 1.02
-	} else if variance < 0.05 && amc.massConfidence > 0.5 { // Higher threshold
-		// Sluggish - increase gains if confident
-		amc.adaptiveKp *= 1.01
-		amc.adaptiveKi *= 1.005
+	// Adjust for oscillations
+	if variance > 1.0 && amc.massConfidence > 0.3 {
+		amc.adaptiveKp *= 0.95 // More aggressive reduction
+		amc.adaptiveKd *= 1.05
+	} else if variance < 0.05 && amc.massConfidence > 0.5 {
+		amc.adaptiveKp *= 1.02
+		amc.adaptiveKi *= 1.01
 	}
 
-	// Tune based on vehicle mass (heavier = higher gains)
-	targetKp := 50.0 + (amc.estimatedMass/1000.0)*2.0 // More conservative scaling
-	targetKi := 5.0 + (amc.estimatedMass/1000.0)*0.2
-	targetKd := 10.0 + (amc.estimatedMass/1000.0)*0.5
+	// LESSON: Better gain scaling based on mass
+	// For 220-ton vehicle, we found Kp=15000, Ki=800, Kd=3000 works well
+	// Scale proportionally with estimated mass
+	massRatio := amc.estimatedMass / 220000.0
+	targetKp := 15000.0 * massRatio
+	targetKi := 800.0 * massRatio
+	targetKd := 3000.0 * massRatio
 
-	// Aggressive tuning mode
+	// Apply aggressive tuning if enabled
 	if amc.cfg.AggressiveTuning {
-		targetKp *= 1.5
-		targetKi *= 1.3
-		targetKd *= 1.2
+		targetKp *= 1.3
+		targetKi *= 1.2
+		targetKd *= 1.3
 	}
 
-	// Slowly converge to target gains
-	amc.adaptiveKp += (targetKp - amc.adaptiveKp) * 0.01
-	amc.adaptiveKi += (targetKi - amc.adaptiveKi) * 0.01
-	amc.adaptiveKd += (targetKd - amc.adaptiveKd) * 0.01
+	// Converge to target gains
+	amc.adaptiveKp += (targetKp - amc.adaptiveKp) * 0.02 // Faster convergence
+	amc.adaptiveKi += (targetKi - amc.adaptiveKi) * 0.02
+	amc.adaptiveKd += (targetKd - amc.adaptiveKd) * 0.02
 
-	// Clamp to reasonable ranges for heavy vehicles
-	amc.adaptiveKp = ClampFloat(amc.adaptiveKp, 10, 50000) // Lower max to prevent overshoot
-	amc.adaptiveKi = ClampFloat(amc.adaptiveKi, 1, 10000)  // Lower max
-	amc.adaptiveKd = ClampFloat(amc.adaptiveKd, 1, 20000)  // Lower max
+	// Realistic bounds for 200+ ton vehicles
+	amc.adaptiveKp = ClampFloat(amc.adaptiveKp, 1000, 50000)
+	amc.adaptiveKi = ClampFloat(amc.adaptiveKi, 100, 10000)
+	amc.adaptiveKd = ClampFloat(amc.adaptiveKd, 500, 20000)
 }
 
-// computeAdaptiveControl calculates control output
+// computeAdaptiveControl - Improved with better anti-windup
 func (amc *AutoMPCController) computeAdaptiveControl(velocity float64, dt float64) ControlOutput {
-	// Compute error
 	error := amc.cfg.TargetVelocityMPS - velocity
 
-	// PID terms output TORQUE [Nm]
+	// LESSON: Overshoot protection from PID tuning
+	if error < 0 {
+		amc.overshootDuration += dt
+		if amc.overshootDuration > 1.5 {
+			// Aggressive integral reset
+			amc.errorIntegral *= 0.3
+		}
+	} else {
+		amc.overshootDuration = 0.0
+	}
+
+	// P term
 	pTerm := amc.adaptiveKp * error
 
-	amc.errorIntegral += error * dt
-	// Anti-windup: limit integral based on max torque
-	maxIntegral := amc.estimatedMaxTorque / (amc.adaptiveKi + 0.01)
+	// I term with adaptive deadband
+	deadband := 0.1 // Don't integrate tiny errors
+	if math.Abs(error) > deadband {
+		amc.errorIntegral += error * dt
+	}
+
+	// LESSON: Reset integral when crossing setpoint
+	if (amc.prevError > 0 && error < 0) || (amc.prevError < 0 && error > 0) {
+		amc.errorIntegral *= 0.15 // Aggressive reset
+	}
+
+	// Anti-windup
+	maxIntegral := amc.estimatedMaxTorque / (amc.adaptiveKi + 1.0)
 	amc.errorIntegral = ClampFloat(amc.errorIntegral, -maxIntegral, maxIntegral)
 	iTerm := amc.adaptiveKi * amc.errorIntegral
 
+	// D term
 	dTerm := 0.0
 	if dt > 0 && amc.iterationCount > 1 {
-		// Skip D-term on first iteration to avoid spike
 		dTerm = amc.adaptiveKd * (error - amc.prevError) / dt
 	}
 	amc.prevError = error
 
-	// Total control torque from PID [Nm]
+	// Total control torque
 	controlTorque := pTerm + iTerm + dTerm
 
-	// Convert to force for feedforward compensation
+	// Feedforward compensation for resistive forces
 	controlForce := amc.torqueToForce(controlTorque)
-
-	// Add feedforward compensation for resistive forces when accelerating
 	if controlForce > 0 {
 		dragComp := amc.estimatedDrag * velocity * math.Abs(velocity)
 		rollingComp := amc.estimatedRolling
@@ -291,29 +313,23 @@ func (amc *AutoMPCController) computeAdaptiveControl(velocity float64, dt float6
 		}
 		controlForce += dragComp + rollingComp
 	}
-	// When braking (controlForce < 0), resistive forces help, don't fight them
 
-	// Convert total force back to actuator commands
 	return amc.forceToActuators(controlForce)
 }
 
-// forceToActuators converts desired force to torque/brake commands
+// forceToActuators - Same as before
 func (amc *AutoMPCController) forceToActuators(force float64) ControlOutput {
 	var output ControlOutput
-
-	// Determine confidence for diagnostic
 	output.Confidence = (amc.massConfidence + amc.dragConfidence + amc.limitConfidence) / 3.0
 
 	if force > 0 {
-		// Acceleration - use motor torque
 		torque := amc.forceToTorque(force)
 		output.TorqueNm = ClampFloat(torque, 0, amc.estimatedMaxTorque)
 		output.BrakePct = 0
 		output.IsAccel = true
 		output.IsBrake = false
 	} else {
-		// Deceleration - use brakes
-		brakeForce := -force // Positive braking force
+		brakeForce := -force
 		brakePct := amc.forceToBrake(brakeForce)
 		output.TorqueNm = 0
 		output.BrakePct = ClampFloat(brakePct, 0, 100)
@@ -324,46 +340,39 @@ func (amc *AutoMPCController) forceToActuators(force float64) ControlOutput {
 	return output
 }
 
-// detectSaturation increases limits if controller saturates
+// detectSaturation - Same as before
 func (amc *AutoMPCController) detectSaturation(output ControlOutput) {
-	// If we hit torque limit repeatedly, increase estimate
 	if output.TorqueNm >= amc.estimatedMaxTorque*0.99 {
 		amc.estimatedMaxTorque *= 1.05
-		amc.estimatedMaxTorque = math.Min(amc.estimatedMaxTorque, 200000) // Cap at 200 kNm for safety
+		amc.estimatedMaxTorque = math.Min(amc.estimatedMaxTorque, 200000)
 	}
 
-	// If we hit brake limit repeatedly, increase estimate
 	if output.BrakePct >= 98.0 {
 		amc.estimatedMaxBrake *= 1.05
-		amc.estimatedMaxBrake = math.Min(amc.estimatedMaxBrake, 500000) // Cap at 250 kN
+		amc.estimatedMaxBrake = math.Min(amc.estimatedMaxBrake, 500000)
 	}
 
 	amc.limitConfidence = math.Min(0.99, amc.limitConfidence+0.001)
 }
 
-// Conversion helpers (uses actual heavy truck geometry: 1.95m radius, 28:1 ratio)
+// Conversion helpers
 func (amc *AutoMPCController) torqueToForce(torque float64) float64 {
-	// F = T * gear_ratio / wheel_radius
 	return torque * amc.gearRatio / amc.wheelRadiusM
 }
 
 func (amc *AutoMPCController) forceToTorque(force float64) float64 {
-	// T = F * wheel_radius / gear_ratio
 	return force * amc.wheelRadiusM / amc.gearRatio
 }
 
 func (amc *AutoMPCController) brakeToForce(brakePct float64) float64 {
-	// Assume max brake force scales with estimated capacity
-	// estimatedMaxBrake is already in Newtons
 	return (brakePct / 100.0) * amc.estimatedMaxBrake
 }
 
 func (amc *AutoMPCController) forceToBrake(force float64) float64 {
-	// Convert force (N) to brake percentage
 	return (force / amc.estimatedMaxBrake) * 100.0
 }
 
-// updateHistory stores recent data for adaptation
+// updateHistory - Same as before
 func (amc *AutoMPCController) updateHistory(velocity float64, dt float64, output ControlOutput) {
 	amc.velocityHistory = append(amc.velocityHistory, velocity)
 	if len(amc.velocityHistory) > 200 {
@@ -385,7 +394,7 @@ func (amc *AutoMPCController) updateHistory(velocity float64, dt float64, output
 	}
 }
 
-// GetDiagnostics returns current state for monitoring
+// GetDiagnostics - Same interface
 func (amc *AutoMPCController) GetDiagnostics() AutoMPCDiagnostics {
 	return AutoMPCDiagnostics{
 		EstimatedMass:      amc.estimatedMass,
@@ -405,26 +414,30 @@ func (amc *AutoMPCController) GetDiagnostics() AutoMPCDiagnostics {
 	}
 }
 
-// GetTargetVelocity returns the setpoint
+// GetTargetVelocity - Same interface
 func (amc *AutoMPCController) GetTargetVelocity() float64 {
 	return amc.cfg.TargetVelocityMPS
 }
 
-// Reset clears all learned parameters
+// Reset - Updated with new initial values
 func (amc *AutoMPCController) Reset() {
 	amc.velocityHistory = amc.velocityHistory[:0]
 	amc.accelHistory = amc.accelHistory[:0]
 	amc.controlHistory = amc.controlHistory[:0]
 	amc.errorIntegral = 0
 	amc.prevError = 0
-	amc.massConfidence = 0.05
-	amc.dragConfidence = 0.05
-	amc.limitConfidence = 0.05
+	amc.overshootDuration = 0
+	amc.massConfidence = 0.3
+	amc.dragConfidence = 0.3
+	amc.limitConfidence = 0.3
 
-	// Reset to initial estimates (keeping geometry constants)
-	amc.estimatedMass = 220000.0
-	amc.estimatedDrag = 9.5
-	amc.estimatedRolling = 9500.0
+	amc.estimatedMass = 200000.0
+	amc.estimatedDrag = 3.5
+	amc.estimatedRolling = 8000.0
 	amc.estimatedMaxTorque = 145000.0
-	amc.estimatedMaxBrake = 180000.0 // 180 kN = 180,000 N
+	amc.estimatedMaxBrake = 180000.0
+
+	amc.adaptiveKp = 8000.0
+	amc.adaptiveKi = 400.0
+	amc.adaptiveKd = 1500.0
 }

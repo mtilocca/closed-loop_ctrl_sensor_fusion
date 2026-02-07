@@ -37,6 +37,38 @@ func (l LogLevel) String() string {
 	}
 }
 
+/*
+ANSI color codes (stdout only)
+*/
+const (
+	colorReset   = "\033[0m"
+	colorGray    = "\033[90m"
+	colorBlue    = "\033[34m"
+	colorGreen   = "\033[32m"
+	colorYellow  = "\033[33m"
+	colorRed     = "\033[31m"
+	colorMagenta = "\033[35m"
+)
+
+func levelColor(level LogLevel) string {
+	switch level {
+	case TRACE:
+		return colorGray
+	case DEBUG:
+		return colorBlue
+	case INFO:
+		return colorGreen
+	case WARN:
+		return colorYellow
+	case ERROR:
+		return colorRed
+	case CRITICAL:
+		return colorMagenta
+	default:
+		return colorReset
+	}
+}
+
 type Logger struct {
 	mu         sync.Mutex
 	minLevel   LogLevel
@@ -82,14 +114,24 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	}
 
 	ts := time.Now().Format(time.RFC3339Nano)
-	line := fmt.Sprintf("%s [%s] %s\n", ts, level.String(), fmt.Sprintf(msg, args...))
+	rawLine := fmt.Sprintf(
+		"%s [%s] %s\n",
+		ts,
+		level.String(),
+		fmt.Sprintf(msg, args...),
+	)
 
+	// File logging (no colors)
 	if l.file != nil {
-		_, _ = l.file.WriteString(line)
+		_, _ = l.file.WriteString(rawLine)
 		_ = l.file.Sync()
 	}
+
+	// Stdout logging (with colors)
 	if l.alsoStdout {
-		_, _ = os.Stdout.WriteString(line)
+		color := levelColor(level)
+		coloredLine := fmt.Sprintf("%s%s%s", color, rawLine, colorReset)
+		_, _ = os.Stdout.WriteString(coloredLine)
 	}
 }
 

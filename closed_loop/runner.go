@@ -189,6 +189,42 @@ func (r *Runner) Close() {
 	}
 }
 
+// sendShutdownCommand sends zero torque/brake commands to safely stop the vehicle
+func (r *Runner) sendShutdownCommand() {
+	r.log.Info("Sending shutdown commands (zero torque/brake)...")
+
+	// Create zero command
+	values := map[string]float64{
+		"system_enable":       0.0, // Disable system
+		"mode":                0.0,
+		"steer_cmd_deg":       0.0,
+		"drive_torque_cmd_nm": 0.0,
+		"brake_cmd_pct":       0.0,
+	}
+
+	// Send multiple times to ensure delivery
+	for i := 0; i < 10; i++ {
+		frame, err := r.cmap.EncodeEinrideFrame(r.fd.Name, values)
+		if err != nil {
+			r.log.Error("Shutdown encode failed: %v", err)
+			return
+		}
+
+		// Use background context since main context may be canceled
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		if err := r.writer.WriteFrame(shutdownCtx, frame); err != nil {
+			r.log.Error("Shutdown TX failed: %v", err)
+			cancel()
+			return
+		}
+		cancel()
+
+		time.Sleep(10 * time.Millisecond) // 10ms between frames
+	}
+
+	r.log.Info("Shutdown commands sent (10 frames)")
+}
+
 func (r *Runner) Run(ctx context.Context) error {
 	controlModeStr := r.scen.Meta.ControlMode
 	if controlModeStr == "" {
@@ -218,6 +254,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			r.log.Warn("Context canceled; stopping TX")
+			r.sendShutdownCommand()
 			r.log.Info("Completed TX. frames_sent=%d", sent)
 			return ctx.Err()
 
@@ -229,6 +266,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		case now := <-ticker.C:
 			elapsed := now.Sub(start)
 			if elapsed > endAfter {
+				r.sendShutdownCommand()
 				r.log.Info("Completed TX. frames_sent=%d", sent)
 				return nil
 			}
@@ -519,5 +557,3 @@ func (r *Runner) decodeSignal(data []byte, startBit, bitLength int, isSigned boo
 
 // compile-time assurance
 var _ can.Frame
-
-// generateCSVFilename creates a descriptive CSV filename from scenario pa

@@ -37,12 +37,13 @@ type ScenarioTiming struct {
 
 // ScenarioSegment defines a time segment with actuator commands
 type ScenarioSegment struct {
-	T0       float64 `json:"t0"`
-	T1       float64 `json:"t1"`
-	SteerDeg float64 `json:"steer_cmd_deg,omitempty"`
-	TorqueNm float64 `json:"drive_torque_cmd_nm,omitempty"`
-	BrakePct float64 `json:"brake_cmd_pct,omitempty"`
-	Comment  string  `json:"comment,omitempty"`
+	T0                float64  `json:"t0"`
+	T1                float64  `json:"t1"`
+	SteerDeg          float64  `json:"steer_cmd_deg,omitempty"`
+	TorqueNm          float64  `json:"drive_torque_cmd_nm,omitempty"`
+	BrakePct          float64  `json:"brake_cmd_pct,omitempty"`
+	TargetVelocityMPS *float64 `json:"target_velocity_mps,omitempty"` // Optional per-segment target velocity
+	Comment           string   `json:"comment,omitempty"`
 }
 
 // ActuatorCmd represents a complete actuator command set
@@ -102,9 +103,24 @@ func LoadScenario(path string) (Scenario, error) {
 	return scen, nil
 }
 
+// SegmentEvaluation contains both actuator command and optional controller parameters
+type SegmentEvaluation struct {
+	Cmd               ActuatorCmd
+	TargetVelocityMPS *float64 // Optional per-segment target velocity override
+}
+
 // EvalActCmd evaluates the scenario at time t and returns actuator commands
 func EvalActCmd(scen *Scenario, t float64) ActuatorCmd {
-	cmd := scen.Defaults
+	eval := EvalSegment(scen, t)
+	return eval.Cmd
+}
+
+// EvalSegment evaluates the scenario at time t and returns full segment evaluation
+func EvalSegment(scen *Scenario, t float64) SegmentEvaluation {
+	eval := SegmentEvaluation{
+		Cmd:               scen.Defaults,
+		TargetVelocityMPS: nil,
+	}
 
 	// Find active segment
 	for _, seg := range scen.Segments {
@@ -115,14 +131,17 @@ func EvalActCmd(scen *Scenario, t float64) ActuatorCmd {
 
 		if t >= seg.T0 && t < t1 {
 			// Override with segment values (only if explicitly set in JSON)
-			cmd.SteerDeg = seg.SteerDeg
+			eval.Cmd.SteerDeg = seg.SteerDeg
 			if seg.TorqueNm != 0 || scen.Meta.ControlMode != "velocity_pid" {
-				cmd.TorqueNm = seg.TorqueNm
+				eval.Cmd.TorqueNm = seg.TorqueNm
 			}
-			cmd.BrakePct = seg.BrakePct
+			eval.Cmd.BrakePct = seg.BrakePct
+
+			// Set per-segment target velocity if specified
+			eval.TargetVelocityMPS = seg.TargetVelocityMPS
 			break
 		}
 	}
 
-	return cmd
+	return eval
 }

@@ -281,13 +281,14 @@ func (r *Runner) Run(ctx context.Context) error {
 			}
 
 			// Evaluate base command from scenario
-			cmd := EvalActCmd(&r.scen, t)
+			segEval := EvalSegment(&r.scen, t)
+			cmd := segEval.Cmd
 
 			// Apply controller based on mode
 			switch r.scen.Meta.ControlMode {
 			case "velocity_pid":
 				if r.pid != nil {
-					r.applyPID(&cmd, currentVelocity, dt, t, sent)
+					r.applyPID(&cmd, currentVelocity, dt, t, sent, segEval.TargetVelocityMPS)
 				}
 
 			case "velocity_mpc":
@@ -337,7 +338,12 @@ func (r *Runner) Run(ctx context.Context) error {
 // Replace your existing applyPID function with this one
 
 // applyPID updates command with PID controller output
-func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t float64, iter uint64) {
+func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t float64, iter uint64, segmentTargetVel *float64) {
+	// Update target velocity if segment specifies one
+	if segmentTargetVel != nil {
+		r.pid.SetTargetVelocity(*segmentTargetVel)
+	}
+
 	// Get control output with automatic brake conversion
 	output := r.pid.Update(velocity, dt)
 

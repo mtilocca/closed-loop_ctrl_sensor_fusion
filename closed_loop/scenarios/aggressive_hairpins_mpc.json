@@ -12,7 +12,7 @@
     "real_time_mode": true
   },
   "mpc_config": {
-    "target_velocity_mps": 12.0,
+    "target_velocity_mps": 7.0,
     "prediction_horizon": 10,
     "control_horizon": 3,
     "time_step": 0.01,

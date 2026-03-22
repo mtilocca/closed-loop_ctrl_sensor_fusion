@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -107,7 +108,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		// PID CSV header (unified format)
 		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
 			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
-			"est_mass_kg,est_drag,model_conf,steering_deg\n")
+			"est_mass_kg,est_drag,model_conf,steering_deg,gear_position\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
@@ -134,7 +135,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		// MPC CSV header (unified format)
 		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
 			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
-			"est_mass_kg,est_drag,model_conf,steering_deg\n")
+			"est_mass_kg,est_drag,model_conf,steering_deg,gear_position\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
@@ -159,7 +160,7 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		// Auto-MPC CSV header (unified format)
 		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
 			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
-			"est_mass_kg,est_drag,model_conf,steering_deg\n")
+			"est_mass_kg,est_drag,model_conf,steering_deg,gear_position\n")
 		if err != nil {
 			csvFile.Close()
 			return nil, fmt.Errorf("write CSV header: %w", err)
@@ -200,6 +201,7 @@ func (r *Runner) sendShutdownCommand() {
 		"steer_cmd_deg":       0.0,
 		"drive_torque_cmd_nm": 0.0,
 		"brake_cmd_pct":       0.0,
+		"gear_position":       0.0, // Neutral on shutdown
 	}
 
 	// Send multiple times to ensure delivery
@@ -246,6 +248,10 @@ func (r *Runner) Run(ctx context.Context) error {
 	currentVelocity := 0.0
 	lastRxTime := time.Now()
 
+	// Gear state tracking for the safety guard
+	currentGear := 1       // Start in Forward
+	gearChangePending := false
+
 	// Start background RX goroutine
 	rxChan := make(chan SensorFeedback, 100)
 	go r.receiveLoop(ctx, rxChan)
@@ -284,20 +290,47 @@ func (r *Runner) Run(ctx context.Context) error {
 			segEval := EvalSegment(&r.scen, t)
 			cmd := segEval.Cmd
 
-			// Apply controller based on mode
+			// === GEAR-CHANGE SAFETY GUARD ===
+			// Only allow gear change when vehicle is stopped; otherwise hold current gear and brake.
+			const gearChangeThresholdMPS = 0.2
+			desiredGear := cmd.GearPosition
+			if desiredGear != currentGear {
+				if math.Abs(currentVelocity) > gearChangeThresholdMPS {
+					r.log.Warn("Gear change %d→%d inhibited: |v|=%.3f m/s - braking to stop",
+						currentGear, desiredGear, currentVelocity)
+					gearChangePending = true
+					cmd.GearPosition = currentGear
+					cmd.TorqueNm = 0.0
+					cmd.BrakePct = 100.0
+				} else {
+					r.log.Info("Gear change: %d → %d (|v|=%.3f m/s)", currentGear, desiredGear, currentVelocity)
+					currentGear = desiredGear
+					cmd.GearPosition = currentGear
+					gearChangePending = false
+					if r.pid != nil {
+						r.pid.Reset()
+					}
+				}
+			} else {
+				gearChangePending = false
+				cmd.GearPosition = currentGear
+			}
+			// === END GEAR-CHANGE SAFETY GUARD ===
+
+			// Apply controller based on mode (skipped while gear change is pending)
 			switch r.scen.Meta.ControlMode {
 			case "velocity_pid":
-				if r.pid != nil {
+				if r.pid != nil && !gearChangePending {
 					r.applyPID(&cmd, currentVelocity, dt, t, sent, segEval.TargetVelocityMPS)
 				}
 
 			case "velocity_mpc":
-				if r.mpc != nil {
+				if r.mpc != nil && !gearChangePending {
 					r.applyMPC(&cmd, currentVelocity, dt, t, sent)
 				}
 
 			case "auto_mpc":
-				if r.autoMPC != nil {
+				if r.autoMPC != nil && !gearChangePending {
 					r.applyAutoMPC(&cmd, currentVelocity, dt, t, sent)
 				}
 
@@ -311,6 +344,7 @@ func (r *Runner) Run(ctx context.Context) error {
 				"steer_cmd_deg":       cmd.SteerDeg,
 				"drive_torque_cmd_nm": cmd.TorqueNm,
 				"brake_cmd_pct":       cmd.BrakePct,
+				"gear_position":       float64(cmd.GearPosition),
 			}
 
 			frame, err := r.cmap.EncodeEinrideFrame(r.fd.Name, values)
@@ -326,8 +360,8 @@ func (r *Runner) Run(ctx context.Context) error {
 
 			sent++
 			if sent%1000 == 0 {
-				r.log.Trace("TX t=%.3f id=0x%X torque=%.1f brake=%.1f steer=%.1f",
-					t, uint32(frame.ID), cmd.TorqueNm, cmd.BrakePct, cmd.SteerDeg)
+				r.log.Trace("TX t=%.3f id=0x%X gear=%d torque=%.1f brake=%.1f steer=%.1f",
+					t, uint32(frame.ID), cmd.GearPosition, cmd.TorqueNm, cmd.BrakePct, cmd.SteerDeg)
 			}
 		}
 	}
@@ -344,8 +378,15 @@ func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 		r.pid.SetTargetVelocity(*segmentTargetVel)
 	}
 
+	// In reverse gear, negate velocity so PID sees positive speed-from-zero.
+	// Reverse targets in the scenario JSON are expressed as positive magnitudes.
+	feedVelocity := velocity
+	if cmd.GearPosition == 2 {
+		feedVelocity = -velocity
+	}
+
 	// Get control output with automatic brake conversion
-	output := r.pid.Update(velocity, dt)
+	output := r.pid.Update(feedVelocity, dt)
 
 	// Apply motor torque and brake commands
 	cmd.TorqueNm = output.TorqueNm
@@ -377,7 +418,7 @@ func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 			dTermApprox = brakeTorqueEquiv - diag.P - diag.I
 		}
 
-		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f,%d\n",
 			t,
 			r.pid.GetTargetVelocity(),
 			velocity,
@@ -392,6 +433,7 @@ func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 			0.0, // est_drag (PID doesn't estimate)
 			1.0, // model_conf (PID has no model)
 			cmd.SteerDeg,
+			cmd.GearPosition,
 		)
 	}
 }
@@ -419,7 +461,7 @@ func (r *Runner) applyMPC(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 		diag := r.mpc.GetDiagnostics()
 		error := r.mpc.GetTargetVelocity() - velocity
 
-		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f,%d\n",
 			t,
 			r.mpc.GetTargetVelocity(),
 			velocity,
@@ -434,6 +476,7 @@ func (r *Runner) applyMPC(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 			diag.EstimatedDrag,
 			diag.ModelConfidence,
 			cmd.SteerDeg,
+			cmd.GearPosition,
 		)
 	}
 }
@@ -464,7 +507,7 @@ func (r *Runner) applyAutoMPC(cmd *ActuatorCmd, velocity float64, dt float64, t 
 		iTerm := diag.AdaptiveKi * error * dt    // Approximate
 		dTerm := output.TorqueNm - pTerm - iTerm // Residual
 
-		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f\n",
+		fmt.Fprintf(r.csvFile, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f,%d\n",
 			t,
 			r.autoMPC.GetTargetVelocity(),
 			velocity,
@@ -479,6 +522,7 @@ func (r *Runner) applyAutoMPC(cmd *ActuatorCmd, velocity float64, dt float64, t 
 			diag.EstimatedDrag,
 			diag.MassConfidence,
 			cmd.SteerDeg,
+			cmd.GearPosition,
 		)
 	}
 }

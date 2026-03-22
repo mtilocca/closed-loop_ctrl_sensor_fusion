@@ -43,6 +43,7 @@ type ScenarioSegment struct {
 	TorqueNm          float64  `json:"drive_torque_cmd_nm,omitempty"`
 	BrakePct          float64  `json:"brake_cmd_pct,omitempty"`
 	TargetVelocityMPS *float64 `json:"target_velocity_mps,omitempty"` // Optional per-segment target velocity
+	GearPosition      *int     `json:"gear_position,omitempty"`       // nil = inherit from defaults
 	Comment           string   `json:"comment,omitempty"`
 }
 
@@ -53,6 +54,7 @@ type ActuatorCmd struct {
 	SteerDeg     float64 `json:"steer_cmd_deg"`
 	TorqueNm     float64 `json:"drive_torque_cmd_nm"`
 	BrakePct     float64 `json:"brake_cmd_pct"`
+	GearPosition int     `json:"gear_position"` // 0=Neutral, 1=Forward, 2=Reverse
 }
 
 // LoadScenario loads a scenario from JSON file
@@ -75,6 +77,12 @@ func LoadScenario(path string) (Scenario, error) {
 	// Set default control mode if not specified
 	if scen.Meta.ControlMode == "" {
 		scen.Meta.ControlMode = "open_loop"
+	}
+
+	// Gear backward compatibility: old JSONs omit gear_position, which unmarshals to 0 (Neutral).
+	// Default to 1 (Forward) so existing scenarios are unaffected.
+	if scen.Defaults.GearPosition == 0 {
+		scen.Defaults.GearPosition = 1
 	}
 
 	// Validate PID config if in velocity_pid mode
@@ -136,6 +144,9 @@ func EvalSegment(scen *Scenario, t float64) SegmentEvaluation {
 				eval.Cmd.TorqueNm = seg.TorqueNm
 			}
 			eval.Cmd.BrakePct = seg.BrakePct
+			if seg.GearPosition != nil {
+				eval.Cmd.GearPosition = *seg.GearPosition
+			}
 
 			// Set per-segment target velocity if specified
 			eval.TargetVelocityMPS = seg.TargetVelocityMPS

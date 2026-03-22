@@ -1,9 +1,10 @@
 direction,frame_id,frame_name,cycle_ms,dlc,signal_name,target,start_bit,bit_length,endianness,signed,factor,offset,min,max,default,unit,counter_bits,crc,comment
 rx,0x100,ACTUATOR_CMD_1,10,8,system_enable,actuator_cmd,0,1,little,FALSE,1,0,0,1,0,bool,,,Motor controller enable
-rx,0x100,ACTUATOR_CMD_1,10,8,mode,actuator_cmd,1,3,little,FALSE,1,0,0,7,0,enum,,,Operating mode (reserved)
+rx,0x100,ACTUATOR_CMD_1,10,8,gear_position,actuator_cmd,1,2,little,FALSE,1,0,0,3,1,enum,,,Gear selector (0=Neutral 1=Forward 2=Reverse)
+rx,0x100,ACTUATOR_CMD_1,10,8,mode,actuator_cmd,3,2,little,FALSE,1,0,0,3,0,enum,,,Operating mode (reserved)
 rx,0x100,ACTUATOR_CMD_1,10,8,steer_cmd_deg,actuator_cmd,8,16,little,TRUE,0.1,0,-500,500,0,deg,,,Steering command
 rx,0x100,ACTUATOR_CMD_1,10,8,drive_torque_cmd_nm,actuator_cmd,24,16,little,TRUE,10,0,-300000,300000,0,Nm,,,Motor torque command (heavy vehicle)
-rx,0x100,ACTUATOR_CMD_1,10,8,brake_cmd_pct,actuator_cmd,40,8,little,FALSE,0.5,0,0,100,0,%,,,Brake pedal percentage
+rx,0x100,ACTUATOR_CMD_1,10,8,brake_cmd_pct,actuator_cmd,40,8,little,FALSE,1,0,0,100,0,%,,,Brake pedal percentage
 tx,0x200,IMU_ACC,5,8,imu_ax_mps2,sensor_out,0,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Longitudinal acceleration
 tx,0x200,IMU_ACC,5,8,imu_ay_mps2,sensor_out,16,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Lateral acceleration
 tx,0x200,IMU_ACC,5,8,imu_az_mps2,sensor_out,32,16,little,TRUE,0.01,0,-50,50,0,m/s2,,,Vertical acceleration
@@ -39,7 +40,7 @@ tx,0x240,RADAR_1,50,8,radar_target_angle_deg,sensor_out,32,16,little,TRUE,0.1,0,
 tx,0x240,RADAR_1,50,8,radar_status,sensor_out,48,8,little,FALSE,1,0,0,255,0,flags,,,Radar status
 tx,0x300,VEHICLE_STATE_1,10,8,vehicle_speed_mps,plant_state,0,16,little,TRUE,0.01,0,-100,100,0,m/s,,,Longitudinal speed (truth)
 tx,0x300,VEHICLE_STATE_1,10,8,vehicle_accel_mps2,plant_state,16,16,little,TRUE,0.01,0,-20,20,0,m/s2,,,Longitudinal acceleration (truth)
-tx,0x300,VEHICLE_STATE_1,10,8,yaw_rate_radps,plant_state,32,16,little,TRUE,0.001,0,-10,10,0,rad/s,,,Yaw rate (truth)
+tx,0x300,VEHICLE_STATE_1,10,8,yaw_rate_radps,plant_state,32,16,little,TRUE,0.0001,0,-3,3,0,rad/s,,,Yaw rate (truth)
 tx,0x300,VEHICLE_STATE_1,10,8,status_flags,plant_state,48,8,little,FALSE,1,0,0,255,0,flags,,,Vehicle status flags
 tx,0x310,MOTOR_STATE_1,10,8,motor_torque_nm,plant_state,0,16,little,TRUE,10,0,-300000,300000,0,Nm,,,Actual motor torque (heavy vehicle)
 tx,0x310,MOTOR_STATE_1,10,8,motor_power_kw,plant_state,16,16,little,TRUE,0.1,0,-3000,3000,0,kW,,,Motor mechanical power (2+ MW)

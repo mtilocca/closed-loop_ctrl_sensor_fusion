@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, Reverse-CAN-Gear-Control]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify module integrity
+        run: go mod verify
+
+      - name: Vet
+        run: go vet ./...
+
+      # Unit & smoke tests — tests/ contains black-box tests for utils and
+      # the control package; closed_loop/ contains package-main scenario tests.
+      - name: Unit tests (utils + control)
+        run: go test -race -count=1 -timeout 120s -v ./tests/...
+
+      - name: Scenario tests (package main)
+        run: go test -race -count=1 -timeout 120s -v ./closed_loop/
+
+      # Build check: verify the binary compiles for the CI host platform.
+      - name: Build (linux/amd64)
+        run: GOOS=linux GOARCH=amd64 go build -o /dev/null ./closed_loop

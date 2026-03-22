@@ -1,158 +1,22 @@
 package main
 
-import (
-	control "closed_loop_ctrl_sensor_fusion/closed_loop/longitudinal_control"
-	"encoding/json"
-	"fmt"
-	"os"
-)
+// This file re-exports the scenario types and functions from the importable
+// sub-package closed_loop/scenario so that package main can use them without
+// duplication and external test packages can import them directly.
 
-// Scenario defines a complete test scenario
-type Scenario struct {
-	Meta              ScenarioMeta               `json:"meta"`
-	Timing            ScenarioTiming             `json:"timing"`
-	Defaults          ActuatorCmd                `json:"defaults"`
-	Segments          []ScenarioSegment          `json:"segments"`
-	PIDConfig         *control.PIDConfig         `json:"pid_config,omitempty"`          // Optional PID config
-	AdaptivePIDConfig *control.AdaptivePIDConfig `json:"adaptive_pid_config,omitempty"` // Optional Adaptive PID config
-	MPCConfig         *control.MPCConfig         `json:"mpc_config,omitempty"`          // Optional MPC config
-	AutoMPCConfig     *control.AutoMPCConfig     `json:"auto_mpc_config,omitempty"`     // Optional Auto-MPC config
-}
+import scenpkg "closed_loop_ctrl_sensor_fusion/closed_loop/scenario"
 
-// ScenarioMeta contains scenario metadata
-type ScenarioMeta struct {
-	Name        string `json:"name"`
-	Version     int    `json:"version"`
-	Description string `json:"description"`
-	ControlMode string `json:"control_mode,omitempty"` // "open_loop", "velocity_pid", "adaptive_velocity_pid", "velocity_mpc", or "auto_mpc"
-}
+// Type aliases — runner.go and main.go use these names directly.
+type Scenario = scenpkg.Scenario
+type ScenarioMeta = scenpkg.ScenarioMeta
+type ScenarioTiming = scenpkg.ScenarioTiming
+type ScenarioSegment = scenpkg.ScenarioSegment
+type ActuatorCmd = scenpkg.ActuatorCmd
+type SegmentEvaluation = scenpkg.SegmentEvaluation
 
-// ScenarioTiming defines timing parameters
-type ScenarioTiming struct {
-	DtS          float64 `json:"dt_s"`
-	DurationS    float64 `json:"duration_s"`
-	LogHz        float64 `json:"log_hz"`
-	RealTimeMode bool    `json:"real_time_mode"`
-}
-
-// ScenarioSegment defines a time segment with actuator commands
-type ScenarioSegment struct {
-	T0                float64  `json:"t0"`
-	T1                float64  `json:"t1"`
-	SteerDeg          float64  `json:"steer_cmd_deg,omitempty"`
-	TorqueNm          float64  `json:"drive_torque_cmd_nm,omitempty"`
-	BrakePct          float64  `json:"brake_cmd_pct,omitempty"`
-	TargetVelocityMPS *float64 `json:"target_velocity_mps,omitempty"` // Optional per-segment target velocity
-	GearPosition      *int     `json:"gear_position,omitempty"`       // nil = inherit from defaults
-	Comment           string   `json:"comment,omitempty"`
-}
-
-// ActuatorCmd represents a complete actuator command set
-type ActuatorCmd struct {
-	SystemEnable bool    `json:"system_enable"`
-	Mode         float64 `json:"mode"`
-	SteerDeg     float64 `json:"steer_cmd_deg"`
-	TorqueNm     float64 `json:"drive_torque_cmd_nm"`
-	BrakePct     float64 `json:"brake_cmd_pct"`
-	GearPosition int     `json:"gear_position"` // 0=Neutral, 1=Forward, 2=Reverse
-}
-
-// LoadScenario loads a scenario from JSON file
-func LoadScenario(path string) (Scenario, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return Scenario{}, fmt.Errorf("read file: %w", err)
-	}
-
-	var scen Scenario
-	if err := json.Unmarshal(data, &scen); err != nil {
-		return Scenario{}, fmt.Errorf("unmarshal: %w", err)
-	}
-
-	// Validate
-	if scen.Timing.DurationS <= 0 {
-		return Scenario{}, fmt.Errorf("invalid duration_s: %f", scen.Timing.DurationS)
-	}
-
-	// Set default control mode if not specified
-	if scen.Meta.ControlMode == "" {
-		scen.Meta.ControlMode = "open_loop"
-	}
-
-	// Gear backward compatibility: old JSONs omit gear_position, which unmarshals to 0 (Neutral).
-	// Default to 1 (Forward) so existing scenarios are unaffected.
-	if scen.Defaults.GearPosition == 0 {
-		scen.Defaults.GearPosition = 1
-	}
-
-	// Validate PID config if in velocity_pid mode
-	if scen.Meta.ControlMode == "velocity_pid" {
-		if scen.PIDConfig == nil {
-			return Scenario{}, fmt.Errorf("velocity_pid mode requires pid_config")
-		}
-		if scen.PIDConfig.TargetVelocityMPS <= 0 {
-			return Scenario{}, fmt.Errorf("invalid target_velocity_mps: %f", scen.PIDConfig.TargetVelocityMPS)
-		}
-	}
-
-	// Validate adaptive PID config if in adaptive_velocity_pid mode
-	if scen.Meta.ControlMode == "adaptive_velocity_pid" {
-		if scen.AdaptivePIDConfig == nil {
-			return Scenario{}, fmt.Errorf("adaptive_velocity_pid mode requires adaptive_pid_config")
-		}
-		if scen.AdaptivePIDConfig.TargetVelocityMPS <= 0 {
-			return Scenario{}, fmt.Errorf("invalid target_velocity_mps: %f", scen.AdaptivePIDConfig.TargetVelocityMPS)
-		}
-		if scen.AdaptivePIDConfig.VehicleMassKg <= 0 {
-			return Scenario{}, fmt.Errorf("invalid vehicle_mass_kg: %f", scen.AdaptivePIDConfig.VehicleMassKg)
-		}
-	}
-
-	return scen, nil
-}
-
-// SegmentEvaluation contains both actuator command and optional controller parameters
-type SegmentEvaluation struct {
-	Cmd               ActuatorCmd
-	TargetVelocityMPS *float64 // Optional per-segment target velocity override
-}
-
-// EvalActCmd evaluates the scenario at time t and returns actuator commands
-func EvalActCmd(scen *Scenario, t float64) ActuatorCmd {
-	eval := EvalSegment(scen, t)
-	return eval.Cmd
-}
-
-// EvalSegment evaluates the scenario at time t and returns full segment evaluation
+// Function wrappers — keep call sites in runner.go unchanged.
+func LoadScenario(path string) (Scenario, error) { return scenpkg.LoadScenario(path) }
 func EvalSegment(scen *Scenario, t float64) SegmentEvaluation {
-	eval := SegmentEvaluation{
-		Cmd:               scen.Defaults,
-		TargetVelocityMPS: nil,
-	}
-
-	// Find active segment
-	for _, seg := range scen.Segments {
-		t1 := seg.T1
-		if t1 < 0 {
-			t1 = scen.Timing.DurationS
-		}
-
-		if t >= seg.T0 && t < t1 {
-			// Override with segment values (only if explicitly set in JSON)
-			eval.Cmd.SteerDeg = seg.SteerDeg
-			if seg.TorqueNm != 0 || scen.Meta.ControlMode != "velocity_pid" {
-				eval.Cmd.TorqueNm = seg.TorqueNm
-			}
-			eval.Cmd.BrakePct = seg.BrakePct
-			if seg.GearPosition != nil {
-				eval.Cmd.GearPosition = *seg.GearPosition
-			}
-
-			// Set per-segment target velocity if specified
-			eval.TargetVelocityMPS = seg.TargetVelocityMPS
-			break
-		}
-	}
-
-	return eval
+	return scenpkg.EvalSegment(scen, t)
 }
+func EvalActCmd(scen *Scenario, t float64) ActuatorCmd { return scenpkg.EvalActCmd(scen, t) }

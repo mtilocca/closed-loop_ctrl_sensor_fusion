@@ -311,6 +311,140 @@ func TestLoadCANMapSignalsAreSortedByStartBit(t *testing.T) {
 // Smoke: encode the real ACTUATOR_CMD_1 frame with all signals
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Byte-level encoding verification for ACTUATOR_CMD_1
+// These tests pin the exact wire bytes to catch any CAN map / codec regressions
+// that would cause the simulator to receive incorrect commands.
+//
+// ACTUATOR_CMD_1 (0x100) layout (little-endian):
+//   Byte 0 : bit0=system_enable, bits1-2=gear_position, bits3-4=mode
+//   Bytes 1-2 : steer_cmd_deg   (signed 16-bit, factor=0.1)
+//   Bytes 3-4 : drive_torque_cmd_nm (signed 16-bit, factor=10)
+//   Byte 5   : brake_cmd_pct   (unsigned 8-bit, factor=1)
+//   Bytes 6-7 : unused (zero)
+// ---------------------------------------------------------------------------
+
+// TestActuatorCMD1BrakeByteEncoding verifies that brake_cmd_pct=100 appears in
+// byte 5 of the wire frame as the value 100 (0x64), and that drive torque is 0.
+func TestActuatorCMD1BrakeByteEncoding(t *testing.T) {
+	m, err := utils.LoadCANMap(realCANMapPath)
+	if err != nil {
+		t.Fatalf("LoadCANMap: %v", err)
+	}
+
+	payload, _, err := m.EncodeFrame("ACTUATOR_CMD_1", map[string]float64{
+		"system_enable":       1.0,
+		"gear_position":       1.0,
+		"mode":                0.0,
+		"steer_cmd_deg":       0.0,
+		"drive_torque_cmd_nm": 0.0,
+		"brake_cmd_pct":       100.0,
+	})
+	if err != nil {
+		t.Fatalf("EncodeFrame: %v", err)
+	}
+
+	// Byte 0: system_enable=1 (bit0), gear=1 (bits1-2=01b), mode=0 (bits3-4=00b) → 0x03
+	if payload[0] != 0x03 {
+		t.Errorf("byte[0] = 0x%02X, want 0x03 (system_enable=1, gear=1, mode=0)", payload[0])
+	}
+	// Bytes 3-4: drive_torque=0 → raw=0 → both bytes 0x00
+	if payload[3] != 0x00 || payload[4] != 0x00 {
+		t.Errorf("bytes[3:5] = 0x%02X 0x%02X, want 0x00 0x00 (torque=0)", payload[3], payload[4])
+	}
+	// Byte 5: brake_cmd_pct=100 → raw=100 → 0x64
+	if payload[5] != 0x64 {
+		t.Errorf("byte[5] = 0x%02X, want 0x64 (brake_cmd_pct=100%%)", payload[5])
+	}
+}
+
+// TestActuatorCMD1DriveTorqueByteEncoding verifies that a known motor torque
+// command encodes to the expected little-endian bytes.
+// drive_torque_cmd_nm=125000, factor=10 → raw=12500 (0x30D4) → byte3=0xD4, byte4=0x30.
+func TestActuatorCMD1DriveTorqueByteEncoding(t *testing.T) {
+	m, err := utils.LoadCANMap(realCANMapPath)
+	if err != nil {
+		t.Fatalf("LoadCANMap: %v", err)
+	}
+
+	payload, _, err := m.EncodeFrame("ACTUATOR_CMD_1", map[string]float64{
+		"system_enable":       1.0,
+		"gear_position":       1.0,
+		"mode":                0.0,
+		"steer_cmd_deg":       0.0,
+		"drive_torque_cmd_nm": 125000.0, // raw = 125000/10 = 12500 = 0x30D4
+		"brake_cmd_pct":       0.0,
+	})
+	if err != nil {
+		t.Fatalf("EncodeFrame: %v", err)
+	}
+
+	// 12500 = 0x30D4; little-endian → byte3=0xD4, byte4=0x30
+	if payload[3] != 0xD4 {
+		t.Errorf("byte[3] = 0x%02X, want 0xD4 (torque low byte)", payload[3])
+	}
+	if payload[4] != 0x30 {
+		t.Errorf("byte[4] = 0x%02X, want 0x30 (torque high byte)", payload[4])
+	}
+	// brake must be 0 when accelerating
+	if payload[5] != 0x00 {
+		t.Errorf("byte[5] = 0x%02X, want 0x00 (brake_cmd_pct=0 while accelerating)", payload[5])
+	}
+}
+
+// TestActuatorCMD1SystemEnableMustBeSetForCommands checks that system_enable=1
+// sets bit 0 of byte 0, and system_enable=0 clears it.
+func TestActuatorCMD1SystemEnableBit(t *testing.T) {
+	m, _ := utils.LoadCANMap(realCANMapPath)
+
+	// With system_enable=1
+	p1, _, _ := m.EncodeFrame("ACTUATOR_CMD_1", map[string]float64{"system_enable": 1.0})
+	if p1[0]&0x01 != 0x01 {
+		t.Errorf("system_enable=1: byte[0] bit0 = 0, want 1 (got 0x%02X)", p1[0])
+	}
+
+	// With system_enable=0 (all other signals default)
+	p0, _, _ := m.EncodeFrame("ACTUATOR_CMD_1", map[string]float64{"system_enable": 0.0})
+	if p0[0]&0x01 != 0x00 {
+		t.Errorf("system_enable=0: byte[0] bit0 = 1, want 0 (got 0x%02X)", p0[0])
+	}
+}
+
+// TestActuatorCMD1BrakeAndTorqueMutualExclusion verifies that when brake>0,
+// torque can be independently set to 0 (the simulator contract).
+func TestActuatorCMD1BrakeAndTorqueMutualExclusion(t *testing.T) {
+	m, _ := utils.LoadCANMap(realCANMapPath)
+
+	cases := []struct {
+		torque float64
+		brake  float64
+	}{
+		{125000, 0},   // full accel, no brake
+		{0, 100},      // full brake, no torque
+		{0, 50},       // half brake
+		{0, 0},        // coast
+	}
+
+	for _, c := range cases {
+		payload, _, err := m.EncodeFrame("ACTUATOR_CMD_1", map[string]float64{
+			"system_enable":       1.0,
+			"drive_torque_cmd_nm": c.torque,
+			"brake_cmd_pct":       c.brake,
+		})
+		if err != nil {
+			t.Fatalf("torque=%.0f brake=%.0f: EncodeFrame: %v", c.torque, c.brake, err)
+		}
+
+		decoded, _ := m.DecodeFrame(0x100, payload)
+		if math.Abs(decoded["drive_torque_cmd_nm"]-c.torque) > 10.0 {
+			t.Errorf("torque=%.0f: decoded=%.0f (diff>10)", c.torque, decoded["drive_torque_cmd_nm"])
+		}
+		if math.Abs(decoded["brake_cmd_pct"]-c.brake) > 0.5 {
+			t.Errorf("brake=%.0f: decoded=%.1f", c.brake, decoded["brake_cmd_pct"])
+		}
+	}
+}
+
 func TestEncodeActuatorCMD1AllSignals(t *testing.T) {
 	m, err := utils.LoadCANMap(realCANMapPath)
 	if err != nil {

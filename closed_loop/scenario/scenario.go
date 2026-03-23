@@ -6,6 +6,7 @@ import (
 	control "closed_loop_ctrl_sensor_fusion/closed_loop/longitudinal_control"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 )
 
@@ -19,6 +20,7 @@ type Scenario struct {
 	AdaptivePIDConfig *control.AdaptivePIDConfig `json:"adaptive_pid_config,omitempty"` // Optional Adaptive PID config
 	MPCConfig         *control.MPCConfig         `json:"mpc_config,omitempty"`          // Optional MPC config
 	AutoMPCConfig     *control.AutoMPCConfig     `json:"auto_mpc_config,omitempty"`     // Optional Auto-MPC config
+	Waypoints         []Waypoint                 `json:"waypoints,omitempty"`           // Optional path waypoints (waypoint_pid mode)
 }
 
 // ScenarioMeta contains scenario metadata
@@ -26,7 +28,25 @@ type ScenarioMeta struct {
 	Name        string `json:"name"`
 	Version     int    `json:"version"`
 	Description string `json:"description"`
-	ControlMode string `json:"control_mode,omitempty"` // "open_loop", "velocity_pid", "adaptive_velocity_pid", "velocity_mpc", or "auto_mpc"
+	ControlMode string `json:"control_mode,omitempty"` // "open_loop", "velocity_pid", "adaptive_velocity_pid", "velocity_mpc", "auto_mpc", or "waypoint_pid"
+}
+
+// Waypoint is a single pose target in a path-based scenario.
+type Waypoint struct {
+	X        float64 `json:"x_m"`
+	Y        float64 `json:"y_m"`
+	YawDeg   float64 `json:"yaw_deg"`
+	SpeedMPS float64 `json:"target_speed_mps"`
+	GearPos  int     `json:"gear_position"` // 1=Forward, 2=Reverse
+	ArriveR  float64 `json:"arrive_radius_m,omitempty"` // default 2.0 m
+	Comment  string  `json:"comment,omitempty"`
+}
+
+// WaypointEval is the result of evaluating the current active waypoint.
+type WaypointEval struct {
+	Waypoint Waypoint
+	Index    int
+	Done     bool // true when all waypoints have been reached
 }
 
 // ScenarioTiming defines timing parameters
@@ -157,4 +177,33 @@ func EvalSegment(scen *Scenario, t float64) SegmentEvaluation {
 	}
 
 	return eval
+}
+
+// EvalWaypoint finds the current active waypoint given vehicle position (x, y in metres).
+// It advances *idx when the vehicle is within ArriveR of the current waypoint.
+// Returns WaypointEval{Done:true} when the last waypoint has been reached.
+func EvalWaypoint(scen *Scenario, x, y float64, idx *int) WaypointEval {
+	if len(scen.Waypoints) == 0 || *idx >= len(scen.Waypoints) {
+		return WaypointEval{Done: true, Index: *idx}
+	}
+
+	wp := scen.Waypoints[*idx]
+	arriveR := wp.ArriveR
+	if arriveR <= 0 {
+		arriveR = 2.0
+	}
+
+	dx := x - wp.X
+	dy := y - wp.Y
+	dist := math.Sqrt(dx*dx + dy*dy)
+
+	if dist < arriveR {
+		*idx++
+		if *idx >= len(scen.Waypoints) {
+			return WaypointEval{Done: true, Index: *idx, Waypoint: wp}
+		}
+		wp = scen.Waypoints[*idx]
+	}
+
+	return WaypointEval{Waypoint: wp, Index: *idx, Done: false}
 }

@@ -34,6 +34,12 @@ type Runner struct {
 	mpc     *control.MPCController
 	autoMPC *control.AutoMPCController // Added Auto-MPC support
 
+	// Waypoint tracking (waypoint_pid mode)
+	wpIdx int
+	posX  float64
+	posY  float64
+	posYawDeg float64
+
 	// CSV logging
 	csvFile *os.File
 	csvPath string
@@ -167,6 +173,36 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		}
 		log.Info("Auto-MPC CSV logging to: %s", r.csvPath)
 
+	case "waypoint_pid":
+		if len(scen.Waypoints) == 0 {
+			return nil, fmt.Errorf("waypoint_pid mode requires at least one waypoint in scenario")
+		}
+		if scen.PIDConfig == nil {
+			return nil, fmt.Errorf("waypoint_pid mode requires pid_config in scenario")
+		}
+		r.pid = control.NewPIDController(*scen.PIDConfig)
+		log.Info("Waypoint-PID controller initialized: %d waypoints, Kp=%.1f, Ki=%.1f, Kd=%.1f",
+			len(scen.Waypoints),
+			scen.PIDConfig.Kp,
+			scen.PIDConfig.Ki,
+			scen.PIDConfig.Kd)
+
+		csvFile, err := os.Create(r.csvPath)
+		if err != nil {
+			return nil, fmt.Errorf("create CSV log: %w", err)
+		}
+		r.csvFile = csvFile
+
+		_, err = csvFile.WriteString("time_s,target_velocity_mps,actual_velocity_mps,error_mps," +
+			"torque_nm,brake_pct,p_term_nm,i_term_nm,d_term_nm,integral," +
+			"est_mass_kg,est_drag,model_conf,steering_deg,gear_position," +
+			"waypoint_idx,cross_track_err_m,heading_err_deg\n")
+		if err != nil {
+			csvFile.Close()
+			return nil, fmt.Errorf("write CSV header: %w", err)
+		}
+		log.Info("Waypoint-PID CSV logging to: %s", r.csvPath)
+
 	case "open_loop", "":
 		log.Info("Open-loop mode (no controller)")
 
@@ -248,6 +284,11 @@ func (r *Runner) Run(ctx context.Context) error {
 	currentVelocity := 0.0
 	lastRxTime := time.Now()
 
+	// Position/orientation for waypoint_pid mode
+	currentX := 0.0
+	currentY := 0.0
+	currentYawDeg := 0.0
+
 	// Gear state tracking for the safety guard
 	currentGear := 1       // Start in Forward
 	gearChangePending := false
@@ -265,9 +306,21 @@ func (r *Runner) Run(ctx context.Context) error {
 			return ctx.Err()
 
 		case feedback := <-rxChan:
-			// Update current velocity from sensor feedback
-			currentVelocity = feedback.VelocityMPS
-			lastRxTime = time.Now()
+			if !feedback.HasPosition && feedback.YawDeg == 0 {
+				// Velocity-only update from 0x300
+				currentVelocity = feedback.VelocityMPS
+				lastRxTime = time.Now()
+			}
+			if feedback.HasPosition {
+				currentX = feedback.PosX
+				currentY = feedback.PosY
+				r.posX = feedback.PosX
+				r.posY = feedback.PosY
+			}
+			if !feedback.HasPosition && feedback.YawDeg != 0 {
+				currentYawDeg = feedback.YawDeg
+				r.posYawDeg = feedback.YawDeg
+			}
 
 		case now := <-ticker.C:
 			elapsed := now.Sub(start)
@@ -334,6 +387,19 @@ func (r *Runner) Run(ctx context.Context) error {
 					r.applyAutoMPC(&cmd, currentVelocity, dt, t, sent)
 				}
 
+			case "waypoint_pid":
+				if r.pid != nil && !gearChangePending {
+					wpEval := EvalWaypoint(&r.scen, currentX, currentY, &r.wpIdx)
+					if wpEval.Done {
+						cmd.TorqueNm = 0.0
+						cmd.BrakePct = 100.0
+						r.log.Info("All waypoints reached — holding stop at t=%.2f", t)
+					} else {
+						cmd.GearPosition = wpEval.Waypoint.GearPos
+						r.applyWaypointPID(&cmd, wpEval.Waypoint, currentVelocity, currentYawDeg, dt, t)
+					}
+				}
+
 				// case "open_loop" - use cmd as-is from scenario
 			}
 
@@ -359,9 +425,14 @@ func (r *Runner) Run(ctx context.Context) error {
 			}
 
 			sent++
-			if sent%1000 == 0 {
-				r.log.Trace("TX t=%.3f id=0x%X gear=%d torque=%.1f brake=%.1f steer=%.1f",
-					t, uint32(frame.ID), cmd.GearPosition, cmd.TorqueNm, cmd.BrakePct, cmd.SteerDeg)
+			// Trace: log raw bytes every 100 frames (~1 s) so the wire encoding
+			// can be verified against the simulator's expected byte layout.
+			if sent%100 == 0 {
+				r.log.Trace("TX t=%.3f id=0x%03X bytes=[%02X %02X %02X %02X %02X %02X %02X %02X] gear=%d torque=%.0f brake=%.1f steer=%.1f",
+					t, uint32(frame.ID),
+					frame.Data[0], frame.Data[1], frame.Data[2], frame.Data[3],
+					frame.Data[4], frame.Data[5], frame.Data[6], frame.Data[7],
+					cmd.GearPosition, cmd.TorqueNm, cmd.BrakePct, cmd.SteerDeg)
 			}
 		}
 	}
@@ -378,15 +449,9 @@ func (r *Runner) applyPID(cmd *ActuatorCmd, velocity float64, dt float64, t floa
 		r.pid.SetTargetVelocity(*segmentTargetVel)
 	}
 
-	// In reverse gear, negate velocity so PID sees positive speed-from-zero.
-	// Reverse targets in the scenario JSON are expressed as positive magnitudes.
-	feedVelocity := velocity
-	if cmd.GearPosition == 2 {
-		feedVelocity = -velocity
-	}
-
-	// Get control output with automatic brake conversion
-	output := r.pid.Update(feedVelocity, dt)
+	// The sim reports speed as a positive magnitude regardless of gear direction.
+	// The gear command sets the physical drive direction; the PID controls magnitude only.
+	output := r.pid.Update(velocity, dt)
 
 	// Apply motor torque and brake commands
 	cmd.TorqueNm = output.TorqueNm
@@ -527,10 +592,68 @@ func (r *Runner) applyAutoMPC(cmd *ActuatorCmd, velocity float64, dt float64, t 
 	}
 }
 
+// applyWaypointPID computes steering via Pure Pursuit and longitudinal torque/brake via PID.
+func (r *Runner) applyWaypointPID(cmd *ActuatorCmd, wp Waypoint, velocity, yawDeg, dt, t float64) {
+	// --- Pure Pursuit lateral control ---
+	const (
+		lookaheadM = 10.0 // tunable: larger = smoother, slower response
+		wheelbaseM = 5.5  // XCMG XDE360
+		maxSteerDeg = 15.0
+	)
+	dx := wp.X - r.posX
+	dy := wp.Y - r.posY
+	yawRad := yawDeg * math.Pi / 180.0
+	// Transform waypoint into vehicle frame
+	localX :=  math.Cos(yawRad)*dx + math.Sin(yawRad)*dy
+	localY := -math.Sin(yawRad)*dx + math.Cos(yawRad)*dy
+	dist := math.Sqrt(dx*dx + dy*dy)
+	ld := math.Max(dist, lookaheadM)
+	curvature := 2.0 * localY / (ld * ld)
+	steerRad := math.Atan(curvature * wheelbaseM)
+	steerDeg := steerRad * 180.0 / math.Pi
+	// Reverse: negate steer because vehicle heading convention flips
+	if cmd.GearPosition == 2 {
+		steerDeg = -steerDeg
+	}
+	cmd.SteerDeg = control.ClampFloat(steerDeg, -maxSteerDeg, maxSteerDeg)
+
+	// --- PID longitudinal ---
+	r.pid.SetTargetVelocity(wp.SpeedMPS)
+	output := r.pid.Update(velocity, dt)
+	cmd.TorqueNm = output.TorqueNm
+	cmd.BrakePct = output.BrakePct
+
+	// --- CSV logging ---
+	if r.csvFile != nil {
+		diag := r.pid.GetDiagnostics()
+		var dTermApprox float64
+		if output.IsAccel {
+			dTermApprox = output.TorqueNm - diag.P - diag.I
+		} else {
+			dTermApprox = -(output.BrakePct/100.0)*12536.0 - diag.P - diag.I
+		}
+		crossTrackErr := localY
+		headingErrDeg := math.Atan2(localY, localX) * 180.0 / math.Pi
+		fmt.Fprintf(r.csvFile,
+			"%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.2f,%.2f,%d,%d,%.3f,%.3f\n",
+			t, wp.SpeedMPS, velocity, diag.Error,
+			output.TorqueNm, output.BrakePct,
+			diag.P, diag.I, dTermApprox, diag.Integral,
+			0.0, 0.0, 1.0, // est_mass, est_drag, model_conf
+			cmd.SteerDeg, cmd.GearPosition,
+			r.wpIdx, crossTrackErr, headingErrDeg,
+		)
+	}
+}
+
 // SensorFeedback contains decoded sensor data from CAN RX
 type SensorFeedback struct {
 	VelocityMPS float64
 	YawRateRPS  float64
+	PosX        float64 // metres (from 0x330)
+	PosY        float64 // metres (from 0x330)
+	YawDeg      float64 // degrees (from 0x331)
+	HasPosition bool    // true when 0x330/0x331 have been received at least once
 	Timestamp   time.Time
 }
 
@@ -565,6 +688,33 @@ func (r *Runner) receiveLoop(ctx context.Context, feedback chan<- SensorFeedback
 				}:
 				default:
 					// Channel full, skip
+				}
+			}
+
+			// Decode POSITION_STATE (0x330): pos_x_m @ bit0 32-bit, pos_y_m @ bit32 32-bit, factor=0.01
+			if frame.ID == 0x330 {
+				posX := r.decodeSignal(frame.Data[:], 0, 32, true, 0.01, 0.0)
+				posY := r.decodeSignal(frame.Data[:], 32, 32, true, 0.01, 0.0)
+				select {
+				case feedback <- SensorFeedback{
+					PosX:        posX,
+					PosY:        posY,
+					HasPosition: true,
+					Timestamp:   time.Now(),
+				}:
+				default:
+				}
+			}
+
+			// Decode ORIENTATION_STATE (0x331): yaw_deg @ bit0 16-bit signed, factor=0.1
+			if frame.ID == 0x331 {
+				yawDeg := r.decodeSignal(frame.Data[:], 0, 16, true, 0.1, 0.0)
+				select {
+				case feedback <- SensorFeedback{
+					YawDeg:    yawDeg,
+					Timestamp: time.Now(),
+				}:
+				default:
 				}
 			}
 		}

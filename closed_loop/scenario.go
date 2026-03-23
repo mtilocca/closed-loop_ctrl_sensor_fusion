@@ -13,6 +13,8 @@ type ScenarioTiming = scenpkg.ScenarioTiming
 type ScenarioSegment = scenpkg.ScenarioSegment
 type ActuatorCmd = scenpkg.ActuatorCmd
 type SegmentEvaluation = scenpkg.SegmentEvaluation
+type Waypoint = scenpkg.Waypoint
+type WaypointEval = scenpkg.WaypointEval
 
 // Function wrappers — keep call sites in runner.go unchanged.
 func LoadScenario(path string) (Scenario, error) { return scenpkg.LoadScenario(path) }
@@ -20,3 +22,6 @@ func EvalSegment(scen *Scenario, t float64) SegmentEvaluation {
 	return scenpkg.EvalSegment(scen, t)
 }
 func EvalActCmd(scen *Scenario, t float64) ActuatorCmd { return scenpkg.EvalActCmd(scen, t) }
+func EvalWaypoint(scen *Scenario, x, y float64, idx *int) WaypointEval {
+	return scenpkg.EvalWaypoint(scen, x, y, idx)
+}

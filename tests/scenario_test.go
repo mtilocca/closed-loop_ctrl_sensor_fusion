@@ -365,3 +365,113 @@ func TestLoadRealGentleSlalomScenario(t *testing.T) {
 		t.Error("gentle_slalom_pid should have at least one segment")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// EvalWaypoint tests
+// ---------------------------------------------------------------------------
+
+// TestEvalWaypointAdvances verifies that the waypoint index advances when the
+// vehicle reaches the arrival radius of each waypoint.
+func TestEvalWaypointAdvances(t *testing.T) {
+	scen := scenario.Scenario{
+		Meta: scenario.ScenarioMeta{
+			Name:        "wp_test",
+			Version:     1,
+			ControlMode: "waypoint_pid",
+		},
+		Timing: scenario.ScenarioTiming{DtS: 0.01, DurationS: 60.0},
+		Waypoints: []scenario.Waypoint{
+			{X: 0.0, Y: 0.0, SpeedMPS: 5.5, GearPos: 1, ArriveR: 2.0},
+			{X: 10.0, Y: 0.0, SpeedMPS: 5.5, GearPos: 1, ArriveR: 2.0},
+			{X: 20.0, Y: 0.0, SpeedMPS: 2.5, GearPos: 1, ArriveR: 2.0},
+		},
+	}
+
+	idx := 0
+
+	// Far from first waypoint — should stay at index 0
+	eval := scenario.EvalWaypoint(&scen, 50.0, 50.0, &idx)
+	if idx != 0 {
+		t.Errorf("far from wp0: idx = %d, want 0", idx)
+	}
+	if eval.Done {
+		t.Error("should not be Done when far from all waypoints")
+	}
+
+	// Within arrival radius of wp0 → should advance to idx 1
+	eval = scenario.EvalWaypoint(&scen, 0.5, 0.5, &idx)
+	if idx != 1 {
+		t.Errorf("inside wp0 radius: idx = %d, want 1", idx)
+	}
+	if eval.Waypoint.X != 10.0 {
+		t.Errorf("after wp0 advance: waypoint.X = %.1f, want 10.0", eval.Waypoint.X)
+	}
+
+	// Within arrival radius of wp1 → should advance to idx 2
+	eval = scenario.EvalWaypoint(&scen, 10.5, 0.0, &idx)
+	if idx != 2 {
+		t.Errorf("inside wp1 radius: idx = %d, want 2", idx)
+	}
+
+	// Within arrival radius of wp2 (last) → Done
+	eval = scenario.EvalWaypoint(&scen, 20.5, 0.0, &idx)
+	if !eval.Done {
+		t.Error("inside last waypoint radius: expected Done=true")
+	}
+}
+
+// TestEvalWaypointEmptyScenarioDone verifies that an empty waypoint list
+// immediately returns Done.
+func TestEvalWaypointEmptyScenarioDone(t *testing.T) {
+	scen := scenario.Scenario{
+		Timing:    scenario.ScenarioTiming{DtS: 0.01, DurationS: 10.0},
+		Waypoints: []scenario.Waypoint{},
+	}
+	idx := 0
+	eval := scenario.EvalWaypoint(&scen, 0, 0, &idx)
+	if !eval.Done {
+		t.Error("empty waypoints: expected Done=true immediately")
+	}
+}
+
+// TestEvalWaypointDefaultArriveRadius verifies that a waypoint with ArriveR=0
+// uses the default 2.0 m radius.
+func TestEvalWaypointDefaultArriveRadius(t *testing.T) {
+	scen := scenario.Scenario{
+		Timing: scenario.ScenarioTiming{DtS: 0.01, DurationS: 10.0},
+		Waypoints: []scenario.Waypoint{
+			{X: 0.0, Y: 0.0, SpeedMPS: 5.5, GearPos: 1}, // ArriveR omitted → 0 → default 2.0
+		},
+	}
+	idx := 0
+	// 1.9 m away — within default 2.0 m radius
+	eval := scenario.EvalWaypoint(&scen, 1.9, 0.0, &idx)
+	if !eval.Done {
+		t.Error("1.9 m from wp with default radius 2.0 m: expected Done=true")
+	}
+}
+
+// TestLoadRealPathToGoalScenario verifies the new waypoint scenario loads cleanly.
+func TestLoadRealPathToGoalScenario(t *testing.T) {
+	scen, err := scenario.LoadScenario(realScenariosDir + "path_to_goal.json")
+	if err != nil {
+		t.Fatalf("LoadScenario path_to_goal: %v", err)
+	}
+	if scen.Meta.ControlMode != "waypoint_pid" {
+		t.Errorf("control_mode = %q, want waypoint_pid", scen.Meta.ControlMode)
+	}
+	if len(scen.Waypoints) == 0 {
+		t.Error("path_to_goal should have at least one waypoint")
+	}
+	// Verify at least one reverse waypoint exists
+	hasReverse := false
+	for _, wp := range scen.Waypoints {
+		if wp.GearPos == 2 {
+			hasReverse = true
+			break
+		}
+	}
+	if !hasReverse {
+		t.Error("path_to_goal should contain at least one reverse waypoint (gear_position=2)")
+	}
+}

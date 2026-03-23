@@ -123,7 +123,7 @@ func TestPIDAcceleratesWhenBelowTarget(t *testing.T) {
 	}
 }
 
-// TestPIDBrakesWhenAboveTarget: negative error → negative torque → converted to brake.
+// TestPIDBrakesWhenAboveTarget: negative error → TorqueNm=0 + positive BrakePct.
 func TestPIDBrakesWhenAboveTarget(t *testing.T) {
 	pid := newTestPID()
 	pid.Update(10.0, 0.01) // init at v=10, target=5 → negative error
@@ -140,7 +140,7 @@ func TestPIDBrakesWhenAboveTarget(t *testing.T) {
 	}
 }
 
-// TestPIDOvershootProtection: after >2 s of error<0, integral zeroed and emergency brake applied.
+// TestPIDOvershootProtection: after >2 s of error<0, integral zeroed and 100% brake applied.
 func TestPIDOvershootProtection(t *testing.T) {
 	pid := newTestPID()
 	// call 1 = init; calls 2–4 accumulate overshootDuration (1.0, 2.0, 3.0 s)
@@ -152,6 +152,9 @@ func TestPIDOvershootProtection(t *testing.T) {
 
 	if out.TorqueNm != 0 {
 		t.Errorf("overshoot protection must zero torque, got %.1f", out.TorqueNm)
+	}
+	if out.BrakePct != 100.0 {
+		t.Errorf("overshoot protection must apply 100%% brake, got %.1f", out.BrakePct)
 	}
 	if !out.IsBrake {
 		t.Error("overshoot protection must set IsBrake=true")
@@ -314,10 +317,11 @@ func TestPIDXCMGMaxBrakeTorque(t *testing.T) {
 	}
 }
 
-// TestPIDReverseGearVelocityFlip: when gear=Reverse the caller negates velocity before
-// passing to PID so the controller sees positive "speed from zero". Verify the expected
-// direction of the initial control output.
-func TestPIDReverseGearVelocityFlip(t *testing.T) {
+// TestPIDReverseGearNoNegation: in reverse gear the runner passes velocity directly
+// (positive magnitude) to the PID — no sign flip. The sim reports speed as a positive
+// magnitude regardless of gear; the gear command itself sets the drive direction.
+// Verify: positive speed below target → PID accelerates (same behaviour as forward gear).
+func TestPIDReverseGearNoNegation(t *testing.T) {
 	pid := control.NewPIDController(control.PIDConfig{
 		TargetVelocityMPS: 2.5, // positive magnitude → reverse at 2.5 m/s
 		Kp: 15000.0, Ki: 800.0, Kd: 3000.0,
@@ -325,16 +329,16 @@ func TestPIDReverseGearVelocityFlip(t *testing.T) {
 		IntegralLimit: 5000.0,
 	})
 
-	// Simulate runner logic: feedVelocity = -currentVelocity when gear=2
-	currentVelocity := -1.5 // vehicle is reversing at 1.5 m/s
-	feedVelocity := -currentVelocity // = +1.5
+	// Sim reports speed as positive magnitude even when reversing.
+	// Runner passes it directly — no negation.
+	currentVelocity := 1.5 // vehicle reversing at 1.5 m/s, reported as positive
 
-	pid.Update(feedVelocity, 0.01) // init
-	out := pid.Update(feedVelocity, 0.01)
+	pid.Update(currentVelocity, 0.01) // init
+	out := pid.Update(currentVelocity, 0.01)
 
-	// Target=2.5, feed=1.5, error=+1.0 → should accelerate (positive torque)
+	// Target=2.5, actual=1.5, error=+1.0 → should accelerate
 	if !out.IsAccel {
-		t.Error("with feed velocity below target, PID should accelerate (apply positive torque)")
+		t.Error("reverse gear below target: PID should accelerate (positive torque)")
 	}
 	if out.TorqueNm <= 0 {
 		t.Errorf("expected positive torque for positive error, got %.1f Nm", out.TorqueNm)

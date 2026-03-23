@@ -84,15 +84,15 @@ func (pid *PIDController) Update(currentVelocity float64, dt float64) ControlOut
 		// We're overshooting (velocity > target)
 		pid.overshootDuration += dt
 
-		// If overshooting for more than 2 seconds, IMMEDIATELY cut torque to zero
-		// and zero out integral to force braking
+		// If overshooting for more than 2 seconds, use full motor braking + full
+		// mechanical brake to recover as quickly as possible.
 		if pid.overshootDuration > 2.0 {
-			pid.integral = 0.0 // Kill integral immediately
+			pid.integral = 0.0
+			pid.prevError = error // keep diagnostics current
 
-			// Return immediate brake command
 			return ControlOutput{
-				TorqueNm:   0.0,
-				BrakePct:   math.Min(math.Abs(error)*20.0, 100.0), // Aggressive braking
+				TorqueNm:   0.0,   // motor must be off when braking
+				BrakePct:   100.0, // full mechanical brake
 				IsAccel:    false,
 				IsBrake:    true,
 				Confidence: 1.0,
@@ -155,12 +155,14 @@ func (pid *PIDController) Update(currentVelocity float64, dt float64) ControlOut
 	return pid.torqueToActuators(controlTorque)
 }
 
-// torqueToActuators converts PID output torque to motor/brake commands
-// Positive torque → motor acceleration
-// Negative torque → brake application
+// torqueToActuators converts PID output torque to motor/brake commands.
+// Positive torque → drive_torque_cmd_nm (motor acceleration).
+// Negative torque → brake_cmd_pct (mechanical brake); drive_torque_cmd_nm is set to 0.
+// The simulator requires drive_torque_cmd_nm=0 when braking — sending both simultaneously
+// produces undefined behaviour in the plant model.
 func (pid *PIDController) torqueToActuators(controlTorque float64) ControlOutput {
 	var output ControlOutput
-	output.Confidence = 1.0 // PID is always confident in its output
+	output.Confidence = 1.0
 
 	if controlTorque >= 0 {
 		// Accelerating - use motor torque
@@ -169,18 +171,14 @@ func (pid *PIDController) torqueToActuators(controlTorque float64) ControlOutput
 		output.IsAccel = true
 		output.IsBrake = false
 	} else {
-		// Braking - convert negative torque to brake percentage
-		output.TorqueNm = 0.0 // CRITICAL: No motor torque when braking!
-
-		// Convert torque magnitude to brake percentage
-		brakeTorqueMagnitude := math.Abs(controlTorque)
-		output.BrakePct = (brakeTorqueMagnitude / pid.maxBrakeTorqueNm) * 100.0
-
-		// Clamp to 0-100% range
-		if output.BrakePct > 100.0 {
-			output.BrakePct = 100.0
+		// Braking - convert negative torque magnitude to brake percentage.
+		// drive_torque_cmd_nm must be 0 while brake_cmd_pct is active.
+		output.TorqueNm = 0.0
+		brakePct := (math.Abs(controlTorque) / pid.maxBrakeTorqueNm) * 100.0
+		if brakePct > 100.0 {
+			brakePct = 100.0
 		}
-
+		output.BrakePct = brakePct
 		output.IsAccel = false
 		output.IsBrake = true
 	}

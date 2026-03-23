@@ -2,7 +2,7 @@
   "meta": {
     "name": "path_to_goal",
     "version": 1,
-    "description": "A* Reeds-Shepp path (0.0,0.0,0\u00b0) \u2192 (50.0,30.0,90\u00b0) | 48 waypoints | 93.4 m",
+    "description": "A* Reeds-Shepp path (0.0,0.0,0\u00b0) \u2192 (50.0,30.0,90\u00b0) | 48 waypoints | 119.6 m",
     "control_mode": "waypoint_pid"
   },
   "timing": {
@@ -398,8 +398,8 @@
       "arrive_radius_m": 2.0
     },
     {
-      "x_m": 69.579,
-      "y_m": 48.667,
+      "x_m": 50.0,
+      "y_m": 30.0,
       "yaw_deg": 90.0,
       "target_speed_mps": 0.0,
       "gear_position": 1,

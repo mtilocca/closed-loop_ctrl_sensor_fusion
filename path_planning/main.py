@@ -71,6 +71,10 @@ def main() -> None:
                              "(requires: pip install casadi)")
     parser.add_argument("--casadi-dt", type=float, default=0.2,
                         help="CasADi integration timestep in seconds (default 0.2)")
+    parser.add_argument("--rect-obstacle", action="append", metavar="X0,Y0,X1,Y1",
+                        help="Rectangular obstacle in world coords (repeatable). "
+                             "Example: --rect-obstacle '20,5,40,25'  "
+                             "Forces A* routing when any obstacle is given.")
     parser.add_argument("--obstacles", default=None,
                         help="PNG obstacle map (white=free, black=obstacle)")
     parser.add_argument("--scale", type=float, default=1.0,
@@ -118,8 +122,19 @@ def main() -> None:
         via_world.append((vx, vy, math.radians(vyaw_deg)))
         print(f"  Via:   ({vx}, {vy}, {vyaw_deg}°)")
 
+    # Rectangular obstacles (world-frame boxes)
+    rect_obstacles: List[Tuple[float, float, float, float]] = []
+    for r_str in (args.rect_obstacle or []):
+        parts = [float(v.strip()) for v in r_str.split(",")]
+        if len(parts) != 4:
+            print(f"  WARNING: --rect-obstacle '{r_str}' ignored (need X0,Y0,X1,Y1)")
+            continue
+        rect_obstacles.append((parts[0], parts[1], parts[2], parts[3]))
+        print(f"  Obstacle rect: ({parts[0]},{parts[1]}) → ({parts[2]},{parts[3]})")
+
+    # PNG obstacle map (alternative to rect-obstacles)
     obstacle_map: Optional[np.ndarray] = None
-    if args.obstacles:
+    if args.obstacles and not rect_obstacles:
         try:
             from PIL import Image
             img          = np.array(Image.open(args.obstacles).convert("L"))
@@ -131,16 +146,17 @@ def main() -> None:
     planner = PathPlanner(vehicle)
     try:
         scenario = planner.plan(
-            start        = (sx, sy, syaw_rad),
-            goal         = (gx, gy, gyaw_rad),
-            via          = via_world or None,
-            clothoid     = args.clothoid,
-            no_reverse   = args.no_reverse,
-            casadi       = args.casadi,
-            casadi_dt    = args.casadi_dt,
-            obstacle_map = obstacle_map,
-            grid_res     = args.grid_res,
-            step         = args.step,
+            start          = (sx, sy, syaw_rad),
+            goal           = (gx, gy, gyaw_rad),
+            via            = via_world or None,
+            clothoid       = args.clothoid,
+            no_reverse     = args.no_reverse,
+            casadi         = args.casadi,
+            casadi_dt      = args.casadi_dt,
+            rect_obstacles = rect_obstacles or None,
+            obstacle_map   = obstacle_map,
+            grid_res       = args.grid_res,
+            step           = args.step,
         )
     except RuntimeError as e:
         print(f"  ERROR: {e}")

@@ -204,18 +204,28 @@ class ReedsSheppPlanner:
         gyaw_rad:    float,
         waypoints:   List[dict],
         poses_world: Optional[List[Tuple[float, float, float, int]]] = None,
+        obstacles:   Optional[List[Tuple[float, float, float, float]]] = None,
     ) -> None:
-        """Plot the planned path with waypoints using matplotlib."""
+        """
+        Plot the planned path with waypoints using matplotlib.
+
+        Args:
+            obstacles: Optional list of (x_min, y_min, x_max, y_max) rectangles
+                       to draw as filled gray boxes.
+        """
         try:
             import matplotlib.pyplot as plt
+            from matplotlib.patches import FancyArrowPatch, Rectangle
         except ImportError:
             print("matplotlib not available — skipping plot.")
             return
 
-        fig, ax  = plt.subplots(figsize=(12, 10))
+        fig, ax   = plt.subplots(figsize=(14, 10))
         effective = poses_world if poses_world is not None else poses
 
+        # Collect world-frame path points
         fwd_x, fwd_y, rev_x, rev_y = [], [], [], []
+        all_wx, all_wy = [], []
         for lx, ly, _, direction in effective:
             if poses_world is not None:
                 wx, wy = lx, ly
@@ -223,43 +233,72 @@ class ReedsSheppPlanner:
                 c, s = math.cos(syaw_rad), math.sin(syaw_rad)
                 wx = sx + c * lx - s * ly
                 wy = sy + s * lx + c * ly
+            all_wx.append(wx); all_wy.append(wy)
             (fwd_x if direction == F else rev_x).append(wx)
             (fwd_y if direction == F else rev_y).append(wy)
 
-        ax.plot(fwd_x, fwd_y, "b-", linewidth=2.0, alpha=0.7, label="Forward")
-        ax.plot(rev_x, rev_y, "r-", linewidth=2.0, alpha=0.7, label="Reverse")
+        # Draw obstacles first (behind path)
+        if obstacles:
+            for x0, y0, x1, y1 in obstacles:
+                ax.add_patch(Rectangle(
+                    (min(x0, x1), min(y0, y1)),
+                    abs(x1 - x0), abs(y1 - y0),
+                    facecolor="dimgray", edgecolor="black",
+                    linewidth=1.0, alpha=0.6, zorder=2, label="_nolegend_",
+                ))
+            # Add a single legend entry for obstacles
+            ax.add_patch(Rectangle((0, 0), 0, 0, facecolor="dimgray",
+                                   alpha=0.6, label="Obstacle"))
+
+        ax.plot(fwd_x, fwd_y, "b-", linewidth=2.0, alpha=0.8, label="Forward",  zorder=3)
+        ax.plot(rev_x, rev_y, "r-", linewidth=2.0, alpha=0.8, label="Reverse",  zorder=3)
 
         for i, wp in enumerate(waypoints):
-            colour = "green" if wp["gear_position"] == 1 else "red"
-            marker = "^"     if wp["gear_position"] == 1 else "v"
-            ax.scatter(wp["x_m"], wp["y_m"], c=colour, marker=marker, s=80, zorder=5)
+            colour = "limegreen" if wp["gear_position"] == 1 else "tomato"
+            marker = "^"         if wp["gear_position"] == 1 else "v"
+            ax.scatter(wp["x_m"], wp["y_m"], c=colour, marker=marker,
+                       s=60, zorder=5, edgecolors="none")
             if "comment" in wp:
                 ax.annotate(f"#{i} {wp['comment']}", (wp["x_m"], wp["y_m"]),
                             textcoords="offset points", xytext=(5, 5), fontsize=7)
 
-        ax.scatter(sx, sy, c="black", marker="s", s=120, zorder=6, label="Start")
-        ax.scatter(gx, gy, c="gold",  marker="*", s=200, zorder=6, label="Goal")
+        ax.scatter(sx, sy, c="black", marker="s", s=140, zorder=7, label="Start")
+        ax.scatter(gx, gy, c="gold",  marker="*", s=250, zorder=7, label="Goal")
 
         arrow = max(5.0, self.vehicle.r_min * 0.3)
-        ax.annotate("", xy=(sx + arrow * math.cos(syaw_rad),
-                             sy + arrow * math.sin(syaw_rad)),
-                    xytext=(sx, sy),
-                    arrowprops=dict(arrowstyle="->", color="black", lw=1.5))
-        ax.annotate("", xy=(gx + arrow * math.cos(gyaw_rad),
-                             gy + arrow * math.sin(gyaw_rad)),
-                    xytext=(gx, gy),
-                    arrowprops=dict(arrowstyle="->", color="goldenrod", lw=1.5))
+        for (px, py, pyaw, colour) in [
+            (sx, sy, syaw_rad, "black"),
+            (gx, gy, gyaw_rad, "goldenrod"),
+        ]:
+            ax.annotate(
+                "", xy=(px + arrow * math.cos(pyaw), py + arrow * math.sin(pyaw)),
+                xytext=(px, py),
+                arrowprops=dict(arrowstyle="->", color=colour, lw=2.0),
+                zorder=8,
+            )
 
+        # Auto-size axes to fit everything with padding
+        all_x = list(all_wx) + [sx, gx] + ([x for r in (obstacles or []) for x in (r[0], r[2])])
+        all_y = list(all_wy) + [sy, gy] + ([y for r in (obstacles or []) for y in (r[1], r[3])])
+        if all_x and all_y:
+            pad = max(10.0, (max(all_x) - min(all_x)) * 0.08,
+                             (max(all_y) - min(all_y)) * 0.08)
+            ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
+            ax.set_ylim(min(all_y) - pad, max(all_y) + pad)
+
+        title = "Reeds-Shepp Path Plan"
+        if poses_world is not None:
+            title += " (clothoid arcs)"
+        if obstacles:
+            title += f" — {len(obstacles)} obstacle(s)"
         ax.set_xlabel("X East (m)")
         ax.set_ylabel("Y North (m)")
-        ax.set_title("Reeds-Shepp Path Plan"
-                     + (" (clothoid arcs)" if poses_world is not None else ""))
+        ax.set_title(title)
         ax.set_aspect("equal")
         ax.grid(True, alpha=0.25)
         ax.legend(loc="best")
         plt.tight_layout()
 
-        # Always save a PNG so the plot is accessible even without a display
         import tempfile, os
         png = os.path.join(tempfile.gettempdir(), "path_plan.png")
         fig.savefig(png, dpi=150, bbox_inches="tight")

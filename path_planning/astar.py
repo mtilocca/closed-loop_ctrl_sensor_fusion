@@ -75,6 +75,8 @@ class AStarPlanner:
         grid_res:     float = 1.0,
         yaw_bins:     int   = 36,
         obstacle_map: Optional[np.ndarray] = None,
+        obs_x_offset: float = 0.0,
+        obs_y_offset: float = 0.0,
     ) -> Optional[RSPath]:
         """
         Plan a collision-free path using A* on the SE(2) lattice.
@@ -123,7 +125,8 @@ class AStarPlanner:
             # Try direct RS connection to goal
             direct = self._rs.plan(wx, wy, wyaw, gx, gy, gyaw)
             if direct is not None and not self._collision(
-                    direct, wx, wy, wyaw, obstacle_map, grid_res):
+                    direct, wx, wy, wyaw, obstacle_map, grid_res,
+                    obs_x_offset, obs_y_offset):
                 segs: List[Segment] = []
                 cur = node
                 while cur.parent is not None:
@@ -145,7 +148,8 @@ class AStarPlanner:
                 prim = self._rs.plan(wx, wy, wyaw, nx, ny, nyaw)
                 if prim is None:
                     continue
-                if self._collision(prim, wx, wy, wyaw, obstacle_map, grid_res):
+                if self._collision(prim, wx, wy, wyaw, obstacle_map, grid_res,
+                                   obs_x_offset, obs_y_offset):
                     continue
                 g_new = node.g + prim.total_length
                 h_new = math.hypot((ns[0] - gg[0]) * grid_res,
@@ -165,6 +169,8 @@ class AStarPlanner:
         syaw:         float,
         obstacle_map: Optional[np.ndarray],
         grid_res:     float,
+        obs_x_offset: float = 0.0,
+        obs_y_offset: float = 0.0,
         step:         float = 0.5,
     ) -> bool:
         """Return True if path passes through any obstacle cell."""
@@ -174,7 +180,8 @@ class AStarPlanner:
         for x, y, _, _ in path.sample(self.vehicle.r_min, step):
             wx = sx + x * math.cos(syaw) - y * math.sin(syaw)
             wy = sy + x * math.sin(syaw) + y * math.cos(syaw)
-            xi, yi = int(wx / grid_res), int(wy / grid_res)
+            xi = int((wx - obs_x_offset) / grid_res)
+            yi = int((wy - obs_y_offset) / grid_res)
             if 0 <= xi < w and 0 <= yi < h:
                 if obstacle_map[yi, xi]:
                     return True

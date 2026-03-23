@@ -56,9 +56,9 @@ def main() -> None:
     parser.add_argument("--via", action="append", metavar="X,Y,YAW",
                         help="Forced stop waypoint (repeatable). "
                              "Example: --via '80,30,45' --via '100,10,0'")
-    parser.add_argument("--output", default="closed_loop/scenarios/path_to_goal.json",
+    parser.add_argument("--output", default="closed_loop/scenarios/planned_path.json",
                         help="Output JSON file "
-                             "(default: closed_loop/scenarios/path_to_goal.json)")
+                             "(default: closed_loop/scenarios/planned_path.json)")
     parser.add_argument("--plot", action="store_true",
                         help="Show matplotlib visualisation")
     parser.add_argument("--clothoid", action="store_true",

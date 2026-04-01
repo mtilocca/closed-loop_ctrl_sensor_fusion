@@ -1,0 +1,1339 @@
+{
+  "meta": {
+    "name": "path_to_goal",
+    "version": 1,
+    "description": "A* Reeds-Shepp path (0.0,0.0,0\u00b0) \u2192 (120.0,0.0,0\u00b0) | 164 waypoints | 337.3 m",
+    "control_mode": "waypoint_pid"
+  },
+  "timing": {
+    "dt_s": 0.01,
+    "duration_s": 210.8,
+    "log_hz": 10.0,
+    "real_time_mode": true
+  },
+  "pid_config": {
+    "target_velocity_mps": 5.5,
+    "kp": 15000.0,
+    "ki": 800.0,
+    "kd": 3000.0,
+    "max_torque_nm": 250000.0,
+    "min_torque_nm": -145000.0,
+    "integral_limit": 5000.0
+  },
+  "waypoints": [
+    {
+      "x_m": 2.059,
+      "y_m": 0.006,
+      "yaw_deg": 0.82,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 4.118,
+      "y_m": 0.065,
+      "yaw_deg": 3.28,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 6.17,
+      "y_m": 0.233,
+      "yaw_deg": 7.39,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 8.2,
+      "y_m": 0.569,
+      "yaw_deg": 12.73,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 10.195,
+      "y_m": 1.081,
+      "yaw_deg": 16.83,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 12.154,
+      "y_m": 1.713,
+      "yaw_deg": 19.3,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 14.092,
+      "y_m": 2.409,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 15.977,
+      "y_m": 3.099,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 17.861,
+      "y_m": 3.789,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 19.746,
+      "y_m": 4.479,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 21.63,
+      "y_m": 5.17,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 23.515,
+      "y_m": 5.86,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 25.399,
+      "y_m": 6.55,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 27.284,
+      "y_m": 7.241,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 29.168,
+      "y_m": 7.931,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 31.053,
+      "y_m": 8.621,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 32.937,
+      "y_m": 9.312,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 34.822,
+      "y_m": 10.002,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 36.706,
+      "y_m": 10.692,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 38.591,
+      "y_m": 11.382,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 40.475,
+      "y_m": 12.073,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 42.36,
+      "y_m": 12.763,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 44.244,
+      "y_m": 13.453,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 46.129,
+      "y_m": 14.144,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 48.013,
+      "y_m": 14.834,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 49.898,
+      "y_m": 15.524,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 51.782,
+      "y_m": 16.215,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 53.667,
+      "y_m": 16.905,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 55.551,
+      "y_m": 17.595,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 57.436,
+      "y_m": 18.285,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 59.32,
+      "y_m": 18.976,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 61.204,
+      "y_m": 19.666,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 63.089,
+      "y_m": 20.356,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 64.973,
+      "y_m": 21.047,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 66.858,
+      "y_m": 21.737,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 68.742,
+      "y_m": 22.427,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 70.627,
+      "y_m": 23.118,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 72.511,
+      "y_m": 23.808,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 74.396,
+      "y_m": 24.498,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 76.28,
+      "y_m": 25.189,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 78.165,
+      "y_m": 25.879,
+      "yaw_deg": 20.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 80.056,
+      "y_m": 26.572,
+      "yaw_deg": 20.16,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 81.966,
+      "y_m": 27.283,
+      "yaw_deg": 21.13,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 83.856,
+      "y_m": 28.042,
+      "yaw_deg": 23.41,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 85.708,
+      "y_m": 28.892,
+      "yaw_deg": 26.98,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 87.494,
+      "y_m": 29.87,
+      "yaw_deg": 31.86,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 89.185,
+      "y_m": 31.006,
+      "yaw_deg": 37.04,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 90.777,
+      "y_m": 32.277,
+      "yaw_deg": 40.94,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 92.291,
+      "y_m": 33.641,
+      "yaw_deg": 43.54,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 93.753,
+      "y_m": 35.059,
+      "yaw_deg": 44.84,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 94.475,
+      "y_m": 35.778,
+      "yaw_deg": 45.0,
+      "target_speed_mps": 0.0,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0,
+      "comment": "via-point 1: forced stop"
+    },
+    {
+      "x_m": 81.428,
+      "y_m": 31.425,
+      "yaw_deg": 44.76,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 82.866,
+      "y_m": 32.839,
+      "yaw_deg": 44.02,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 84.326,
+      "y_m": 34.23,
+      "yaw_deg": 42.8,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 85.821,
+      "y_m": 35.585,
+      "yaw_deg": 41.08,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 87.359,
+      "y_m": 36.889,
+      "yaw_deg": 38.88,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 88.95,
+      "y_m": 38.128,
+      "yaw_deg": 36.19,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 90.602,
+      "y_m": 39.286,
+      "yaw_deg": 33.01,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 92.318,
+      "y_m": 40.345,
+      "yaw_deg": 29.33,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 94.102,
+      "y_m": 41.286,
+      "yaw_deg": 25.17,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 95.952,
+      "y_m": 42.089,
+      "yaw_deg": 20.52,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 97.862,
+      "y_m": 42.733,
+      "yaw_deg": 15.38,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 99.825,
+      "y_m": 43.197,
+      "yaw_deg": 9.87,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 101.822,
+      "y_m": 43.475,
+      "yaw_deg": 4.73,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 103.836,
+      "y_m": 43.578,
+      "yaw_deg": 0.08,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 105.851,
+      "y_m": 43.525,
+      "yaw_deg": -4.08,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 107.859,
+      "y_m": 43.332,
+      "yaw_deg": -7.75,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 109.851,
+      "y_m": 43.017,
+      "yaw_deg": -10.93,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 111.824,
+      "y_m": 42.598,
+      "yaw_deg": -13.63,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 113.777,
+      "y_m": 42.093,
+      "yaw_deg": -15.83,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 115.71,
+      "y_m": 41.52,
+      "yaw_deg": -17.54,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 117.628,
+      "y_m": 40.895,
+      "yaw_deg": -18.77,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 119.534,
+      "y_m": 40.236,
+      "yaw_deg": -19.5,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 121.434,
+      "y_m": 39.558,
+      "yaw_deg": -19.75,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 123.321,
+      "y_m": 38.882,
+      "yaw_deg": -19.58,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 125.211,
+      "y_m": 38.216,
+      "yaw_deg": -19.07,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 127.108,
+      "y_m": 37.571,
+      "yaw_deg": -18.23,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 129.016,
+      "y_m": 36.958,
+      "yaw_deg": -17.06,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 130.938,
+      "y_m": 36.388,
+      "yaw_deg": -15.54,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 132.875,
+      "y_m": 35.874,
+      "yaw_deg": -13.69,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 134.828,
+      "y_m": 35.426,
+      "yaw_deg": -11.5,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 136.798,
+      "y_m": 35.058,
+      "yaw_deg": -8.98,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 138.783,
+      "y_m": 34.782,
+      "yaw_deg": -6.12,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 140.779,
+      "y_m": 34.609,
+      "yaw_deg": -2.92,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 142.782,
+      "y_m": 34.552,
+      "yaw_deg": 0.61,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 144.785,
+      "y_m": 34.623,
+      "yaw_deg": 4.48,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 146.777,
+      "y_m": 34.834,
+      "yaw_deg": 8.69,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 148.748,
+      "y_m": 35.194,
+      "yaw_deg": 13.23,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 150.683,
+      "y_m": 35.714,
+      "yaw_deg": 18.11,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 152.565,
+      "y_m": 36.4,
+      "yaw_deg": 23.32,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 154.375,
+      "y_m": 37.259,
+      "yaw_deg": 28.83,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 156.096,
+      "y_m": 38.286,
+      "yaw_deg": 34.13,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 157.716,
+      "y_m": 39.464,
+      "yaw_deg": 39.09,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 159.232,
+      "y_m": 40.775,
+      "yaw_deg": 43.72,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 160.64,
+      "y_m": 42.2,
+      "yaw_deg": 48.01,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 161.941,
+      "y_m": 43.724,
+      "yaw_deg": 51.96,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 163.137,
+      "y_m": 45.332,
+      "yaw_deg": 55.58,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 164.233,
+      "y_m": 47.009,
+      "yaw_deg": 58.86,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 165.235,
+      "y_m": 48.745,
+      "yaw_deg": 61.8,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 166.151,
+      "y_m": 50.527,
+      "yaw_deg": 64.41,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 166.989,
+      "y_m": 52.348,
+      "yaw_deg": 66.68,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 167.758,
+      "y_m": 54.198,
+      "yaw_deg": 68.62,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 168.468,
+      "y_m": 56.072,
+      "yaw_deg": 70.22,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 169.13,
+      "y_m": 57.964,
+      "yaw_deg": 71.48,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 169.754,
+      "y_m": 59.868,
+      "yaw_deg": 72.4,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 170.351,
+      "y_m": 61.781,
+      "yaw_deg": 72.99,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 170.934,
+      "y_m": 63.699,
+      "yaw_deg": 73.25,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 171.511,
+      "y_m": 65.617,
+      "yaw_deg": 73.2,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 172.093,
+      "y_m": 67.534,
+      "yaw_deg": 72.95,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 172.685,
+      "y_m": 69.447,
+      "yaw_deg": 72.5,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 173.295,
+      "y_m": 71.355,
+      "yaw_deg": 71.86,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 173.928,
+      "y_m": 73.255,
+      "yaw_deg": 71.01,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 174.592,
+      "y_m": 75.145,
+      "yaw_deg": 69.97,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 175.293,
+      "y_m": 77.021,
+      "yaw_deg": 68.73,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 176.037,
+      "y_m": 78.881,
+      "yaw_deg": 67.29,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 176.83,
+      "y_m": 80.721,
+      "yaw_deg": 65.65,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 177.677,
+      "y_m": 82.536,
+      "yaw_deg": 63.81,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 178.585,
+      "y_m": 84.321,
+      "yaw_deg": 61.77,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 179.557,
+      "y_m": 86.072,
+      "yaw_deg": 59.53,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 180.6,
+      "y_m": 87.782,
+      "yaw_deg": 57.1,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 181.716,
+      "y_m": 89.445,
+      "yaw_deg": 54.46,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 182.91,
+      "y_m": 91.053,
+      "yaw_deg": 51.63,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 184.183,
+      "y_m": 92.599,
+      "yaw_deg": 48.6,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 185.539,
+      "y_m": 94.073,
+      "yaw_deg": 45.37,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 186.977,
+      "y_m": 95.467,
+      "yaw_deg": 41.94,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 188.498,
+      "y_m": 96.77,
+      "yaw_deg": 38.31,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 190.099,
+      "y_m": 97.972,
+      "yaw_deg": 34.49,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 191.779,
+      "y_m": 99.063,
+      "yaw_deg": 30.46,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 193.533,
+      "y_m": 100.03,
+      "yaw_deg": 26.24,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 195.353,
+      "y_m": 100.864,
+      "yaw_deg": 21.81,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 197.234,
+      "y_m": 101.552,
+      "yaw_deg": 17.19,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 199.165,
+      "y_m": 102.083,
+      "yaw_deg": 12.37,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 201.134,
+      "y_m": 102.448,
+      "yaw_deg": 7.35,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 203.127,
+      "y_m": 102.637,
+      "yaw_deg": 2.13,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 205.129,
+      "y_m": 102.641,
+      "yaw_deg": -3.29,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 207.123,
+      "y_m": 102.454,
+      "yaw_deg": -8.82,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 209.089,
+      "y_m": 102.077,
+      "yaw_deg": -14.19,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 211.013,
+      "y_m": 101.52,
+      "yaw_deg": -19.36,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 212.879,
+      "y_m": 100.795,
+      "yaw_deg": -24.33,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 214.677,
+      "y_m": 99.912,
+      "yaw_deg": -29.1,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 216.396,
+      "y_m": 98.886,
+      "yaw_deg": -33.67,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 218.03,
+      "y_m": 97.728,
+      "yaw_deg": -38.05,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 219.573,
+      "y_m": 96.451,
+      "yaw_deg": -42.22,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 221.02,
+      "y_m": 95.067,
+      "yaw_deg": -46.2,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 222.369,
+      "y_m": 93.587,
+      "yaw_deg": -49.97,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 223.621,
+      "y_m": 92.023,
+      "yaw_deg": -53.55,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 224.774,
+      "y_m": 90.386,
+      "yaw_deg": -56.93,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 225.831,
+      "y_m": 88.685,
+      "yaw_deg": -60.11,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 226.795,
+      "y_m": 86.929,
+      "yaw_deg": -63.09,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 227.668,
+      "y_m": 85.127,
+      "yaw_deg": -65.88,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 228.455,
+      "y_m": 83.285,
+      "yaw_deg": -68.46,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 229.16,
+      "y_m": 81.411,
+      "yaw_deg": -70.85,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 229.79,
+      "y_m": 79.509,
+      "yaw_deg": -73.03,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 230.349,
+      "y_m": 77.586,
+      "yaw_deg": -75.02,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 230.843,
+      "y_m": 75.645,
+      "yaw_deg": -76.81,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 231.279,
+      "y_m": 73.69,
+      "yaw_deg": -78.4,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 231.664,
+      "y_m": 71.724,
+      "yaw_deg": -79.79,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 232.003,
+      "y_m": 69.75,
+      "yaw_deg": -80.99,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 232.303,
+      "y_m": 67.77,
+      "yaw_deg": -81.98,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 232.571,
+      "y_m": 65.785,
+      "yaw_deg": -82.78,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 232.815,
+      "y_m": 63.797,
+      "yaw_deg": -83.37,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 233.041,
+      "y_m": 61.806,
+      "yaw_deg": -83.77,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 233.255,
+      "y_m": 59.815,
+      "yaw_deg": -83.97,
+      "target_speed_mps": 5.5,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0
+    },
+    {
+      "x_m": 233.36,
+      "y_m": 58.819,
+      "yaw_deg": -83.99,
+      "target_speed_mps": 0.0,
+      "gear_position": 1,
+      "arrive_radius_m": 2.0,
+      "comment": "goal: final stop"
+    }
+  ]
+}

@@ -18,12 +18,17 @@ type SignalDef struct {
 }
 
 type FrameDef struct {
-	ID        uint32
-	Name      string
-	DLC       int
-	Direction string
-	CycleMS   int
-	Signals   []SignalDef
+	ID         uint32 // computed 29-bit J1939 CAN ID
+	IsExtended bool   // true for J1939 (29-bit) frames
+	Priority   uint8
+	PGN        uint32
+	SA         uint8 // source address
+	DA         uint8 // destination address (PDU1) or 0xFF (PDU2)
+	Name       string
+	DLC        int
+	Direction  string
+	CycleMS    int
+	Signals    []SignalDef
 }
 
 type CANMap struct {

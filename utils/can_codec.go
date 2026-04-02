@@ -43,13 +43,19 @@ func (m *CANMap) EncodeFrame(frameName string, values map[string]float64) ([]byt
 
 // Helper: produce einride can.Frame ready to transmit.
 func (m *CANMap) EncodeEinrideFrame(frameName string, values map[string]float64) (can.Frame, error) {
+	fd, err := m.FrameByName(frameName)
+	if err != nil {
+		return can.Frame{}, err
+	}
+
 	payload, id, err := m.EncodeFrame(frameName, values)
 	if err != nil {
 		return can.Frame{}, err
 	}
 
 	var f can.Frame
-	f.ID = id              // <-- FIX: assign uint32 directly
+	f.ID = id
+	f.IsExtended = fd.IsExtended
 	f.Length = uint8(len(payload))
 	copy(f.Data[:], payload)
 

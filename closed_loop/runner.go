@@ -34,6 +34,11 @@ type Runner struct {
 	mpc     *control.MPCController
 	autoMPC *control.AutoMPCController // Added Auto-MPC support
 
+	// J1939 CAN IDs for RX frames (looked up from map at startup)
+	vehicleStateID  uint32
+	positionStateID uint32
+	orientStateID   uint32
+
 	// Waypoint tracking (waypoint_pid mode)
 	wpIdx int
 	posX  float64
@@ -64,6 +69,20 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 		return nil, fmt.Errorf("frame %s has invalid cycle_ms %d", fd.Name, fd.CycleMS)
 	}
 
+	// Look up J1939 IDs for the RX feedback frames
+	vsFrame, err := cmap.FrameByName("VEHICLE_STATE_1")
+	if err != nil {
+		return nil, fmt.Errorf("VEHICLE_STATE_1 not in CAN map: %w", err)
+	}
+	posFrame, err := cmap.FrameByName("POSITION_STATE")
+	if err != nil {
+		return nil, fmt.Errorf("POSITION_STATE not in CAN map: %w", err)
+	}
+	orientFrame, err := cmap.FrameByName("ORIENTATION_STATE")
+	if err != nil {
+		return nil, fmt.Errorf("ORIENTATION_STATE not in CAN map: %w", err)
+	}
+
 	// Create CAN writer (TX)
 	writer, err := utils.NewSocketCANWriter(ctx, cfg.Interface)
 	if err != nil {
@@ -81,14 +100,17 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, log *utils.Logger) (*Runne
 	csvPath := generateCSVFilename(cfg.ScenarioPath, scen.Meta.ControlMode)
 
 	r := &Runner{
-		cfg:     cfg,
-		log:     log,
-		cmap:    cmap,
-		scen:    scen,
-		writer:  writer,
-		reader:  reader,
-		fd:      fd,
-		csvPath: csvPath,
+		cfg:             cfg,
+		log:             log,
+		cmap:            cmap,
+		scen:            scen,
+		writer:          writer,
+		reader:          reader,
+		fd:              fd,
+		csvPath:         csvPath,
+		vehicleStateID:  vsFrame.ID,
+		positionStateID: posFrame.ID,
+		orientStateID:   orientFrame.ID,
 	}
 
 	// Initialize appropriate controller based on control mode
@@ -428,7 +450,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			// Trace: log raw bytes every 100 frames (~1 s) so the wire encoding
 			// can be verified against the simulator's expected byte layout.
 			if sent%100 == 0 {
-				r.log.Trace("TX t=%.3f id=0x%03X bytes=[%02X %02X %02X %02X %02X %02X %02X %02X] gear=%d torque=%.0f brake=%.1f steer=%.1f",
+				r.log.Trace("TX t=%.3f id=0x%08X bytes=[%02X %02X %02X %02X %02X %02X %02X %02X] gear=%d torque=%.0f brake=%.1f steer=%.1f",
 					t, uint32(frame.ID),
 					frame.Data[0], frame.Data[1], frame.Data[2], frame.Data[3],
 					frame.Data[4], frame.Data[5], frame.Data[6], frame.Data[7],
@@ -676,8 +698,8 @@ func (r *Runner) receiveLoop(ctx context.Context, feedback chan<- SensorFeedback
 				continue
 			}
 
-			// Decode VEHICLE_STATE_1 (0x300) for truth velocity
-			if frame.ID == 0x300 {
+			// Decode VEHICLE_STATE_1 for truth velocity
+			if frame.ID == r.vehicleStateID {
 				// vehicle_speed_mps: start_bit=0, length=16, signed, factor=0.01
 				velocity := r.decodeSignal(frame.Data[:], 0, 16, true, 0.01, 0.0)
 
@@ -691,8 +713,8 @@ func (r *Runner) receiveLoop(ctx context.Context, feedback chan<- SensorFeedback
 				}
 			}
 
-			// Decode POSITION_STATE (0x330): pos_x_m @ bit0 32-bit, pos_y_m @ bit32 32-bit, factor=0.01
-			if frame.ID == 0x330 {
+			// Decode POSITION_STATE: pos_x_m @ bit0 32-bit, pos_y_m @ bit32 32-bit, factor=0.01
+			if frame.ID == r.positionStateID {
 				posX := r.decodeSignal(frame.Data[:], 0, 32, true, 0.01, 0.0)
 				posY := r.decodeSignal(frame.Data[:], 32, 32, true, 0.01, 0.0)
 				select {
@@ -706,8 +728,8 @@ func (r *Runner) receiveLoop(ctx context.Context, feedback chan<- SensorFeedback
 				}
 			}
 
-			// Decode ORIENTATION_STATE (0x331): yaw_deg @ bit0 16-bit signed, factor=0.1
-			if frame.ID == 0x331 {
+			// Decode ORIENTATION_STATE: yaw_deg @ bit0 16-bit signed, factor=0.1
+			if frame.ID == r.orientStateID {
 				yawDeg := r.decodeSignal(frame.Data[:], 0, 16, true, 0.1, 0.0)
 				select {
 				case feedback <- SensorFeedback{

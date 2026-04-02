@@ -32,7 +32,7 @@ func LoadCANMap(csvPath string) (*CANMap, error) {
 	}
 
 	req := []string{
-		"direction", "frame_id", "frame_name", "cycle_ms", "dlc",
+		"direction", "priority", "pgn", "sa", "da", "frame_name", "cycle_ms", "dlc",
 		"signal_name", "start_bit", "bit_length", "endianness",
 		"signed", "factor", "offset", "min", "max", "default", "unit", "comment",
 	}
@@ -56,10 +56,23 @@ func LoadCANMap(csvPath string) (*CANMap, error) {
 			return nil, err
 		}
 
-		frameID, err := parseHexOrDecUint32(rec[idx["frame_id"]])
+		priority, err := parseHexOrDecUint8(rec[idx["priority"]])
 		if err != nil {
-			return nil, fmt.Errorf("invalid frame_id %q: %w", rec[idx["frame_id"]], err)
+			return nil, fmt.Errorf("invalid priority %q: %w", rec[idx["priority"]], err)
 		}
+		pgn, err := parseHexOrDecUint32(rec[idx["pgn"]])
+		if err != nil {
+			return nil, fmt.Errorf("invalid pgn %q: %w", rec[idx["pgn"]], err)
+		}
+		sa, err := parseHexOrDecUint8(rec[idx["sa"]])
+		if err != nil {
+			return nil, fmt.Errorf("invalid sa %q: %w", rec[idx["sa"]], err)
+		}
+		da, err := parseHexOrDecUint8(rec[idx["da"]])
+		if err != nil {
+			return nil, fmt.Errorf("invalid da %q: %w", rec[idx["da"]], err)
+		}
+		frameID := j1939CanID(priority, pgn, sa, da)
 
 		frameName := strings.TrimSpace(rec[idx["frame_name"]])
 		direction := strings.TrimSpace(rec[idx["direction"]])
@@ -96,12 +109,17 @@ func LoadCANMap(csvPath string) (*CANMap, error) {
 		fd, ok := m.ByID[frameID]
 		if !ok {
 			fd = &FrameDef{
-				ID:        frameID,
-				Name:      frameName,
-				DLC:       dlc,
-				Direction: direction,
-				CycleMS:   cycleMS,
-				Signals:   []SignalDef{},
+				ID:         frameID,
+				IsExtended: true,
+				Priority:   priority,
+				PGN:        pgn,
+				SA:         sa,
+				DA:         da,
+				Name:       frameName,
+				DLC:        dlc,
+				Direction:  direction,
+				CycleMS:    cycleMS,
+				Signals:    []SignalDef{},
 			}
 			m.ByID[frameID] = fd
 			m.ByName[frameName] = fd
@@ -149,6 +167,35 @@ func parseHexOrDecUint32(s string) (uint32, error) {
 		return 0, err
 	}
 	return uint32(u), nil
+}
+
+func parseHexOrDecUint8(s string) (uint8, error) {
+	ss := strings.TrimSpace(s)
+	base := 10
+	if strings.HasPrefix(ss, "0x") || strings.HasPrefix(ss, "0X") {
+		base = 16
+		ss = ss[2:]
+	}
+	u, err := strconv.ParseUint(ss, base, 8)
+	if err != nil {
+		return 0, err
+	}
+	return uint8(u), nil
+}
+
+// j1939CanID computes the 29-bit J1939 CAN ID from its components.
+// For PDU1 messages (PF < 0xF0): the destination address (da) occupies
+// the PS field. For PDU2 messages (PF >= 0xF0): PS comes from the low
+// byte of the PGN (group extension).
+func j1939CanID(priority uint8, pgn uint32, sa, da uint8) uint32 {
+	pf := uint8((pgn >> 8) & 0xFF)
+	var ps uint8
+	if pf < 0xF0 { // PDU1: peer-to-peer, PS = destination address
+		ps = da
+	} else { // PDU2: broadcast, PS = group extension from PGN
+		ps = uint8(pgn & 0xFF)
+	}
+	return (uint32(priority) << 26) | (uint32(pf) << 16) | (uint32(ps) << 8) | uint32(sa)
 }
 
 func mustInt(s string) int {

@@ -181,9 +181,9 @@ func TestLoadCANMapRealFile(t *testing.T) {
 
 func TestLoadCANMapACTUATOR_CMD_1(t *testing.T) {
 	m, _ := utils.LoadCANMap(realCANMapPath)
-	fd, err := m.FrameByID(0x100)
+	fd, err := m.FrameByID(0x18EFF021) // J1939: priority=6, pgn=0xEF00(PDU1), sa=0x21, da=0xF0
 	if err != nil {
-		t.Fatalf("ACTUATOR_CMD_1 (0x100) not found: %v", err)
+		t.Fatalf("ACTUATOR_CMD_1 (0x18EFF021) not found: %v", err)
 	}
 	if fd.Name != "ACTUATOR_CMD_1" {
 		t.Errorf("name = %q, want ACTUATOR_CMD_1", fd.Name)
@@ -195,7 +195,7 @@ func TestLoadCANMapACTUATOR_CMD_1(t *testing.T) {
 
 func TestLoadCANMapGearPositionSignal(t *testing.T) {
 	m, _ := utils.LoadCANMap(realCANMapPath)
-	fd, _ := m.FrameByID(0x100)
+	fd, _ := m.FrameByID(0x18EFF021)
 
 	var gear *utils.SignalDef
 	for i := range fd.Signals {
@@ -220,9 +220,9 @@ func TestLoadCANMapGearPositionSignal(t *testing.T) {
 
 func TestLoadCANMapVehicleSpeedSignal(t *testing.T) {
 	m, _ := utils.LoadCANMap(realCANMapPath)
-	fd, err := m.FrameByID(0x300)
+	fd, err := m.FrameByID(0x18FF50F0) // J1939: priority=6, pgn=0xFF50(PDU2), sa=0xF0
 	if err != nil {
-		t.Fatalf("VEHICLE_STATE_1 (0x300) not found: %v", err)
+		t.Fatalf("VEHICLE_STATE_1 (0x18FF50F0) not found: %v", err)
 	}
 
 	var speed *utils.SignalDef
@@ -242,7 +242,7 @@ func TestLoadCANMapVehicleSpeedSignal(t *testing.T) {
 
 func TestFrameByNameMatchesFrameByID(t *testing.T) {
 	m, _ := utils.LoadCANMap(realCANMapPath)
-	byID, _ := m.FrameByID(0x100)
+	byID, _ := m.FrameByID(0x18EFF021)
 	byName, err := m.FrameByName("ACTUATOR_CMD_1")
 	if err != nil {
 		t.Fatalf("FrameByName: %v", err)
@@ -276,9 +276,9 @@ func TestLoadCANMapMissingFileReturnsError(t *testing.T) {
 }
 
 func TestLoadCANMapMissingRequiredColumnReturnsError(t *testing.T) {
-	// CSV missing the "signed" column
-	content := "direction,frame_id,frame_name,cycle_ms,dlc,signal_name,start_bit,bit_length,factor,offset,min,max,default,unit,comment\n" +
-		"rx,0x100,TEST,10,8,speed,0,8,0.01,0,0,100,0,,speed\n"
+	// CSV missing the "signed" column (uses J1939 columns, but omits "signed")
+	content := "direction,priority,pgn,sa,da,frame_name,cycle_ms,dlc,signal_name,target,start_bit,bit_length,endianness,factor,offset,min,max,default,unit,counter_bits,crc,comment\n" +
+		"rx,6,0xEF00,0x21,0xF0,TEST,10,8,speed,actuator_cmd,0,8,little,0.01,0,0,100,0,m/s,,,speed\n"
 	f, err := os.CreateTemp("", "can_map_*.csv")
 	if err != nil {
 		t.Fatal(err)
@@ -298,7 +298,7 @@ func TestLoadCANMapMissingRequiredColumnReturnsError(t *testing.T) {
 
 func TestLoadCANMapSignalsAreSortedByStartBit(t *testing.T) {
 	m, _ := utils.LoadCANMap(realCANMapPath)
-	fd, _ := m.FrameByID(0x100)
+	fd, _ := m.FrameByID(0x18EFF021)
 	for i := 1; i < len(fd.Signals); i++ {
 		if fd.Signals[i].StartBit < fd.Signals[i-1].StartBit {
 			t.Errorf("signals not sorted at index %d: %d < %d",
@@ -435,7 +435,7 @@ func TestActuatorCMD1BrakeAndTorqueMutualExclusion(t *testing.T) {
 			t.Fatalf("torque=%.0f brake=%.0f: EncodeFrame: %v", c.torque, c.brake, err)
 		}
 
-		decoded, _ := m.DecodeFrame(0x100, payload)
+		decoded, _ := m.DecodeFrame(0x18EFF021, payload)
 		if math.Abs(decoded["drive_torque_cmd_nm"]-c.torque) > 10.0 {
 			t.Errorf("torque=%.0f: decoded=%.0f (diff>10)", c.torque, decoded["drive_torque_cmd_nm"])
 		}

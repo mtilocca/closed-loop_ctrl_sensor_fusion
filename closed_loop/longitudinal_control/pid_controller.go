@@ -112,10 +112,10 @@ func (pid *PIDController) Update(currentVelocity float64, dt float64) ControlOut
 		pid.integral += error * dt
 	}
 
-	// CRITICAL: Reset integral when crossing setpoint to prevent overshoot
-	// If error changed sign, we've crossed the setpoint - reduce integral aggressively
+	// Reset integral when crossing setpoint to prevent overshoot.
+	// Full zero discharge: accumulated I during acceleration must not fight braking.
 	if (pid.prevError > 0 && error < 0) || (pid.prevError < 0 && error > 0) {
-		pid.integral *= 0.1 // Keep only 10% when crossing setpoint
+		pid.integral = 0.0
 	}
 
 	// Clamp integral

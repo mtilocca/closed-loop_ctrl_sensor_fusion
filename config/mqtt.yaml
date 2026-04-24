@@ -1,0 +1,7 @@
+broker: "tcp://192.168.1.106:1883"
+client_id: "closed_loop_ctrl"
+actuator_topic: "hdv/cmd/actuator"
+state_topic: "hdv/state/vehicle"
+qos: 0
+keep_alive_s: 30
+conn_timeout_s: 10

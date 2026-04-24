@@ -15,11 +15,15 @@ import (
 
 func main() {
 	var (
-		iface     = flag.String("iface", "vcan0", "SocketCAN interface name")
-		mapPath   = flag.String("map", "config/can/can_map.csv", "Path to can_map.csv")
-		scenPath  = flag.String("scenario", "closed_loop/scenarios/constant_velocity_turns.json", "Scenario JSON file")
-		frameName = flag.String("frame", "ACTUATOR_CMD_1", "Frame name to transmit")
-		logLevel  = flag.String("log", "info", "trace|debug|info|warn|error|critical")
+		// CAN flags
+		iface     = flag.String("iface", "vcan0", "SocketCAN interface name (CAN transport only)")
+		mapPath   = flag.String("map", "config/can/can_map.csv", "Path to can_map.csv (CAN transport only)")
+		frameName = flag.String("frame", "ACTUATOR_CMD_1", "CAN frame to transmit (CAN transport only)")
+		// Common flags
+		scenPath      = flag.String("scenario", "closed_loop/scenarios/constant_velocity_turns.json", "Scenario JSON file")
+		logLevel      = flag.String("log", "info", "trace|debug|info|warn|error|critical")
+		transportMode = flag.String("transport", "can", "Transport mode: can|mqtt")
+		mqttCfgPath   = flag.String("mqtt-config", "config/mqtt.yaml", "Path to mqtt.yaml (MQTT transport only)")
 	)
 	flag.Parse()
 
@@ -32,17 +36,75 @@ func main() {
 	}
 	defer log.Close()
 
-	cfg := RunnerConfig{
-		Interface:    *iface,
-		MapPath:      *mapPath,
-		ScenarioPath: *scenPath,
-		FrameName:    *frameName,
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	runner, err := NewRunner(ctx, cfg, log)
+	var transport utils.Transport
+	var transportDesc string
+
+	switch *transportMode {
+	case "can":
+		cmap, err := utils.LoadCANMap(*mapPath)
+		if err != nil {
+			log.Critical("Load CAN map: %v", err)
+			os.Exit(1)
+		}
+		fd, err := cmap.FrameByName(*frameName)
+		if err != nil {
+			log.Critical("CAN frame %q not found: %v", *frameName, err)
+			os.Exit(1)
+		}
+		if fd.CycleMS <= 0 {
+			log.Critical("Frame %s has invalid cycle_ms %d", fd.Name, fd.CycleMS)
+			os.Exit(1)
+		}
+		vsFrame, err := cmap.FrameByName("VEHICLE_STATE_1")
+		if err != nil {
+			log.Critical("VEHICLE_STATE_1 not in CAN map: %v", err)
+			os.Exit(1)
+		}
+		posFrame, err := cmap.FrameByName("POSITION_STATE")
+		if err != nil {
+			log.Critical("POSITION_STATE not in CAN map: %v", err)
+			os.Exit(1)
+		}
+		orientFrame, err := cmap.FrameByName("ORIENTATION_STATE")
+		if err != nil {
+			log.Critical("ORIENTATION_STATE not in CAN map: %v", err)
+			os.Exit(1)
+		}
+		transport, err = utils.NewCANTransport(ctx, *iface, cmap, fd,
+			vsFrame.ID, posFrame.ID, orientFrame.ID, log)
+		if err != nil {
+			log.Critical("CAN transport init: %v", err)
+			os.Exit(1)
+		}
+		transportDesc = fmt.Sprintf("%s (CAN)", *iface)
+
+	case "mqtt":
+		mqttCfg, err := utils.LoadMQTTConfig(*mqttCfgPath)
+		if err != nil {
+			log.Critical("Load MQTT config: %v", err)
+			os.Exit(1)
+		}
+		transport, err = utils.NewMQTTTransport(mqttCfg, log)
+		if err != nil {
+			log.Critical("MQTT transport init: %v", err)
+			os.Exit(1)
+		}
+		transportDesc = fmt.Sprintf("%s (MQTT)", mqttCfg.Broker)
+
+	default:
+		log.Critical("Unknown transport %q — use can or mqtt", *transportMode)
+		os.Exit(1)
+	}
+
+	cfg := RunnerConfig{
+		ScenarioPath:  *scenPath,
+		TransportDesc: transportDesc,
+	}
+
+	runner, err := NewRunner(ctx, cfg, transport, log)
 	if err != nil {
 		log.Critical("Startup failed: %v", err)
 		os.Exit(1)
@@ -106,16 +168,9 @@ func parseLevel(s string) utils.LogLevel {
 	}
 }
 
-// generateCSVFilename creates a descriptive CSV filename from scenario path and control mode
+// generateCSVFilename creates a descriptive CSV filename from scenario path and control mode.
 func generateCSVFilename(scenarioPath string, controlMode string) string {
-	// Extract scenario name from path
-	// e.g., "closed_loop/scenarios/gentle_slalom_pid.json" -> "gentle_slalom_pid"
 	basename := filepath.Base(scenarioPath)
 	scenarioName := strings.TrimSuffix(basename, filepath.Ext(basename))
-
-	// Create filename: <scenario_name>_<control_mode>.csv
-	// e.g., "gentle_slalom_pid_velocity_pid.csv" or just "gentle_slalom_pid.csv"
-	filename := fmt.Sprintf("%s.csv", scenarioName)
-
-	return filename
+	return fmt.Sprintf("%s.csv", scenarioName)
 }

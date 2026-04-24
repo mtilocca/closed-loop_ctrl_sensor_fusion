@@ -31,3 +31,14 @@ python3 analyze_controller.py gentle_slalom_mpc.csv 2
 
 # Auto-MPC
 python3 analyze_controller.py gentle_slalom_auto_mpc.csv 3
+
+
+## CAN (unchanged behaviour)
+./bin/closed_loop_sender_linux_amd64 -transport can \
+  -scenario closed_loop/scenarios/gentle_slalom_pid.json \
+  -iface vcan0 -map config/can/can_map.csv -frame ACTUATOR_CMD_1 -log debug
+
+# MQTT
+./bin/closed_loop_sender_linux_amd64 -transport mqtt \
+  -scenario closed_loop/scenarios/gentle_slalom_pid.json \
+  -mqtt-config config/mqtt.yaml -log debug

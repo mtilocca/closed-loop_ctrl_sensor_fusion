@@ -24,6 +24,7 @@ func main() {
 		logLevel      = flag.String("log", "info", "trace|debug|info|warn|error|critical")
 		transportMode = flag.String("transport", "can", "Transport mode: can|mqtt")
 		mqttCfgPath   = flag.String("mqtt-config", "config/mqtt.yaml", "Path to mqtt.yaml (MQTT transport only)")
+		cycleMS       = flag.Int("cycle-ms", 0, "Control cycle override in ms (0 = use scenario dt_s)")
 	)
 	flag.Parse()
 
@@ -100,8 +101,9 @@ func main() {
 	}
 
 	cfg := RunnerConfig{
-		ScenarioPath:  *scenPath,
-		TransportDesc: transportDesc,
+		ScenarioPath:    *scenPath,
+		TransportDesc:   transportDesc,
+		CycleOverrideMS: *cycleMS,
 	}
 
 	runner, err := NewRunner(ctx, cfg, transport, log)

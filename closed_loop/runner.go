@@ -17,6 +17,7 @@ type SensorFeedback = utils.SensorFeedback
 type RunnerConfig struct {
 	ScenarioPath  string
 	TransportDesc string // e.g. "vcan0 (CAN)" or "tcp://host:1883 (MQTT)"
+	CycleOverrideMS int  // >0 overrides scenario dt_s; 0 uses scenario value
 }
 
 type Runner struct {
@@ -48,8 +49,10 @@ func NewRunner(ctx context.Context, cfg RunnerConfig, transport utils.Transport,
 		return nil, fmt.Errorf("load scenario: %w", err)
 	}
 
-	// Derive control cycle from scenario timing (dt_s = 0.01 → 10 ms).
-	cycleMS := int(scen.Timing.DtS * 1000)
+	cycleMS := cfg.CycleOverrideMS
+	if cycleMS <= 0 {
+		cycleMS = int(scen.Timing.DtS * 1000)
+	}
 	if cycleMS <= 0 {
 		cycleMS = 10
 	}
@@ -258,7 +261,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			dt := float64(r.cycleMS) / 1000.0
 
 			rxAge := now.Sub(lastRxTime)
-			if rxAge > 500*time.Millisecond && (r.pid != nil || r.mpc != nil || r.autoMPC != nil) {
+			if rxAge > 2000*time.Millisecond && (r.pid != nil || r.mpc != nil || r.autoMPC != nil) {
 				r.log.Warn("No sensor feedback for %.1f ms - controller may be unreliable", rxAge.Seconds()*1000)
 			}
 
